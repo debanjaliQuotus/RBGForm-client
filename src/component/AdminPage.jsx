@@ -220,7 +220,7 @@ const AdminPage = () => {
                             ✖
                         </button>
                         <h2 className="text-xl font-bold mb-4">Add User</h2>
-                        <UserForm />
+                        <UserForm mode="add"/>
                     </div>
                 </div>
             )}
@@ -236,7 +236,7 @@ const AdminPage = () => {
                             ✖
                         </button>
                         <h2 className="text-xl font-bold mb-4">Edit User</h2>
-                        <UserForm initialData={selectedUser} isEdit={true} />
+                        <UserForm initialData={selectedUser} mode="edit" />
                     </div>
                 </div>
             )}

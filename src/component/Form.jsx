@@ -302,7 +302,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
 
       const url =
         mode === "edit"
-          ? `http://localhost:5000/forms/${initialData.id}`
+          ? `http://localhost:5000/forms/${initialData.id|| initialData._id}`
           : "http://localhost:5000/forms";
 
       const method = mode === "edit" ? "PUT" : "POST";
@@ -311,6 +311,10 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        // ✅ Show backend message in alert if it exists
+      if (errorData.message) {
+        alert(errorData.message);
+      }
         throw { response: { data: errorData } };
       }
 
