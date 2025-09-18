@@ -769,7 +769,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
               <label className="block text-gray-600 text-sm font-medium mb-1">Total Experience (Years)</label>
               <input
                 type="number"
-                step="0.1"
+                step="1"
                 name="totalExperience"
                 placeholder="Total Experience (Years)"
                 value={formData.totalExperience}
