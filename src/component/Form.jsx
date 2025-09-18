@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useForm, Controller } from "react-hook-form";
 
 const debounce = (func, delay) => {
   let timer;
@@ -94,7 +95,7 @@ const LOCATION_APIS = {
 };
 
 // Enhanced Debounced Autocomplete with API Integration
-const DebouncedAutoComplete = ({ name, value, onChange, placeholder, apiType, error, className }) => {
+const DebouncedAutoComplete = ({ name, value, onChange, placeholder, apiType, className }) => {
   const [inputValue, setInputValue] = useState(value || "");
   const [filteredOptions, setFilteredOptions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -149,12 +150,12 @@ const DebouncedAutoComplete = ({ name, value, onChange, placeholder, apiType, er
   const handleInputChange = (e) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    onChange({ target: { name, value: newValue } });
+    onChange(newValue);
   };
 
   const handleOptionSelect = (option) => {
     setInputValue(option);
-    onChange({ target: { name, value: option } });
+    onChange(option);
     setIsOpen(false);
   };
 
@@ -175,25 +176,25 @@ const DebouncedAutoComplete = ({ name, value, onChange, placeholder, apiType, er
       />
 
       {isLoading && (
-        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-          <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+        <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+          <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
         </div>
       )}
 
       {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option, index) => (
               <div
                 key={index}
                 onClick={() => handleOptionSelect(option)}
-                className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100 last:border-b-0"
+                className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-100 last:border-b-0 transition-colors duration-150"
               >
                 {option}
               </div>
             ))
           ) : (
-            <div className="px-3 py-2 text-gray-500 text-sm">No options found</div>
+            <div className="px-4 py-3 text-gray-500 text-sm">No options found</div>
           )}
         </div>
       )}
@@ -202,45 +203,48 @@ const DebouncedAutoComplete = ({ name, value, onChange, placeholder, apiType, er
 };
 
 const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
-  const [formData, setFormData] = useState({
-    uploadedBy: "",
-    firstName: "",
-    middleName: "",
-    lastName: "",
-    contactNo: "",
-    alternateContactNo: "",
-    mailId: "",
-    alternateMailId: "",
-    fatherName: "",
-    panNo: "",
-    dateOfBirth: "",
-    dobDay: "",
-    dobMonth: "",
-    dobYear: "",
-    gender: "",
-    currentState: "",
-    currentCity: "",
-    preferredState: "",
-    preferredCity: "",
-    currentEmployer: "",
-    designation: "",
-    department: "",
-    ctcInLakhs: "",
-    totalExperience: "",
-    comments: [""],
-    comment1: "",
-    comment2: "",
-    comment3: ""
-  });
-
   const [pdfFile, setPdfFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { control, handleSubmit, setValue, watch, reset } = useForm({
+    defaultValues: {
+      uploadedBy: "",
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      contactNo: "",
+      alternateContactNo: "",
+      mailId: "",
+      alternateMailId: "",
+      fatherName: "",
+      panNo: "",
+      dobDay: "",
+      dobMonth: "",
+      dobYear: "",
+      gender: "",
+      currentState: "",
+      currentCity: "",
+      preferredState: "",
+      preferredCity: "",
+      currentEmployer: "",
+      designation: "",
+      department: "",
+      customDepartment: "",
+      ctcInLakhs: "",
+      totalExperience: "",
+      comment1: "",
+      comment2: "",
+      comment3: ""
+    }
+  });
+
+  const watchDobFields = watch(["dobDay", "dobMonth", "dobYear"]);
+  const watchDepartment = watch("department");
+
   // ✅ Fill form if editing
   useEffect(() => {
     if (initialData) {
-      // Parse dateOfBirth if it exists
       const updatedData = { ...initialData };
       if (initialData.dateOfBirth) {
         const dateParts = initialData.dateOfBirth.split('-');
@@ -250,77 +254,56 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
           updatedData.dobDay = dateParts[2];
         }
       }
-      setFormData(prev => ({ ...prev, ...updatedData }));
+      reset(updatedData);
     }
-  }, [initialData]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData((prev) => {
-      const updated = { ...prev, [name]: value };
-
-      // If DOB fields are being updated, combine them into single dateOfBirth
-      if (["dobDay", "dobMonth", "dobYear"].includes(name)) {
-        const { dobDay, dobMonth, dobYear } = updated;
-        if (dobDay && dobMonth && dobYear) {
-          updated.dateOfBirth = `${dobYear}-${dobMonth.padStart(2, "0")}-${dobDay.padStart(2, "0")}`;
-        }
-      }
-
-      return updated;
-    });
-  };
+  }, [initialData, reset]);
 
   const handleFileChange = (e) => {
     setPdfFile(e.target.files[0]);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (data) => {
     setIsSubmitting(true);
     setErrors({});
 
     try {
-      const data = new FormData();
-      Object.keys(formData).forEach((key) => {
-        if (key !== "comments" && key !== "dobDay" && key !== "dobMonth" && key !== "dobYear") {
-          data.append(key, formData[key]);
+      const formData = new FormData();
+
+      // Combine DOB fields
+      if (data.dobDay && data.dobMonth && data.dobYear) {
+        data.dateOfBirth = `${data.dobYear}-${data.dobMonth.padStart(2, "0")}-${data.dobDay.padStart(2, "0")}`;
+      }
+
+      Object.keys(data).forEach((key) => {
+        if (!["dobDay", "dobMonth", "dobYear"].includes(key)) {
+          if (data[key]) {
+            formData.append(key, data[key]);
+          }
         }
       });
 
-      // Handle comments separately
-      if (formData.comments) {
-        formData.comments.forEach((comment, index) => {
-          if (comment.trim()) {
-            data.append(`comment${index + 1}`, comment);
-          }
-        });
-      }
-
-      if (pdfFile) data.append("pdfFile", pdfFile);
+      if (pdfFile) formData.append("pdfFile", pdfFile);
 
       const url =
         mode === "edit"
-          ? `http://localhost:5000/forms/${initialData.id|| initialData._id}`
+          ? `http://localhost:5000/forms/${initialData.id || initialData._id}`
           : "http://localhost:5000/forms";
 
       const method = mode === "edit" ? "PUT" : "POST";
 
-      const response = await fetch(url, { method, body: data });
+      const response = await fetch(url, { method, body: formData });
 
       if (!response.ok) {
         const errorData = await response.json();
-        // ✅ Show backend message in alert if it exists
-      if (errorData.message) {
-        alert(errorData.message);
-      }
+        if (errorData.message) {
+          alert(errorData.message);
+        }
         throw { response: { data: errorData } };
       }
 
       alert(mode === "edit" ? "User updated successfully!" : "Form submitted successfully!");
-      if (onSuccess) onSuccess(); // callback to refresh table
-      if (onClose) onClose(); // close modal
+      if (onSuccess) onSuccess();
+      if (onClose) onClose();
     } catch (error) {
       console.error(error);
 
@@ -350,513 +333,680 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       <p className="text-red-600 text-sm mt-1 font-medium">{errors[fieldName]}</p>
     ) : null;
 
-  const handleCommentChange = (index, value) => {
-    const newComments = [...(formData.comments || [""])];
-    newComments[index] = value;
-    setFormData({ ...formData, comments: newComments });
-  };
-
-  const addComment = () => {
-    if (formData.comments.length < 3) {
-      setFormData({
-        ...formData,
-        comments: [...(formData.comments || []), ""],
-      });
-    }
-  };
+  const inputClass = "w-full px-4 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-white text-gray-700 placeholder-gray-400";
+  const selectClass = "w-full px-4 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-white text-gray-700";
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100 p-4">
-      <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-4xl max-h-screen overflow-y-auto">
-        <h2 className="text-3xl font-bold mb-8 text-center text-blue-600">
-          {mode === "edit" ? "Edit User" : "User Information Form"}
-        </h2>
-
-        {/* Personal Information */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3 text-gray-700">Personal Information</h3>
-
-          {/* Uploaded By */}
-          <div className="mb-4">
-            <label className="block text-gray-600 text-sm font-medium mb-1">Uploaded By</label>
-            <input
-              type="text"
-              name="uploadedBy"
-              placeholder="Uploaded By"
-              value={formData.uploadedBy}
-              onChange={handleChange}
-              className={`p-3 text-sm border rounded-md w-full ${errors.uploadedBy ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-            />
-            {renderError('uploadedBy')}
-          </div>
-
-          {/* Name Fields in One Row */}
-          <div className="mb-4">
-            <label className="block text-gray-600 text-sm font-medium mb-1">Full Name</label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <input
-                  type="text"
-                  name="firstName"
-                  placeholder="First Name"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  className={`p-3 text-sm border rounded-md w-full ${errors.firstName ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                />
-                {renderError('firstName')}
-              </div>
-              <div>
-                <input
-                  type="text"
-                  name="middleName"
-                  placeholder="Middle Name"
-                  value={formData.middleName}
-                  onChange={handleChange}
-                  className={`p-3 text-sm border rounded-md w-full ${errors.middleName ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                />
-                {renderError('middleName')}
-              </div>
-              <div>
-                <input
-                  type="text"
-                  name="lastName"
-                  placeholder="Last Name"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  className={`p-3 text-sm border rounded-md w-full ${errors.lastName ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                />
-                {renderError('lastName')}
-              </div>
-            </div>
-          </div>
-
-          {/* Father Name */}
-          <div className="mb-4">
-            <label className="block text-gray-600 text-sm font-medium mb-1">Father's Name</label>
-            <input
-              type="text"
-              name="fatherName"
-              placeholder="Father Name"
-              value={formData.fatherName}
-              onChange={handleChange}
-              className={`p-3 text-sm border rounded-md w-full ${errors.fatherName ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-            />
-            {renderError('fatherName')}
-          </div>
-
-          {/* Date of Birth */}
-          <div className="mb-4">
-            <label className="block text-gray-600 text-sm font-medium mb-1">Date of Birth</label>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <select
-                  name="dobDay"
-                  value={formData.dobDay || ""}
-                  onChange={handleChange}
-                  className={`p-3 text-sm border rounded-md w-full ${errors.dateOfBirth ? "border-red-500 bg-red-50" : "border-gray-300"}`}
-                >
-                  <option value="">DD</option>
-                  {Array.from({ length: 31 }, (_, i) => (
-                    <option key={i + 1} value={String(i + 1).padStart(2, "0")}>
-                      {i + 1}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <select
-                  name="dobMonth"
-                  value={formData.dobMonth || ""}
-                  onChange={handleChange}
-                  className={`p-3 text-sm border rounded-md w-full ${errors.dateOfBirth ? "border-red-500 bg-red-50" : "border-gray-300"}`}
-                >
-                  <option value="">MM</option>
-                  <option value="01">Jan</option>
-                  <option value="02">Feb</option>
-                  <option value="03">Mar</option>
-                  <option value="04">Apr</option>
-                  <option value="05">May</option>
-                  <option value="06">Jun</option>
-                  <option value="07">Jul</option>
-                  <option value="08">Aug</option>
-                  <option value="09">Sep</option>
-                  <option value="10">Oct</option>
-                  <option value="11">Nov</option>
-                  <option value="12">Dec</option>
-                </select>
-              </div>
-              <div>
-                <select
-                  name="dobYear"
-                  value={formData.dobYear || ""}
-                  onChange={handleChange}
-                  className={`p-3 text-sm border rounded-md w-full ${errors.dateOfBirth ? "border-red-500 bg-red-50" : "border-gray-300"}`}
-                >
-                  <option value="">YYYY</option>
-                  {Array.from({ length: 100 }, (_, i) => {
-                    const year = new Date().getFullYear() - i;
-                    return (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            </div>
-            {renderError('dateOfBirth')}
-          </div>
-
-          {/* Gender and PAN in same row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Gender</label>
-              <select
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-                className={`p-3 text-sm border rounded-md w-full ${errors.gender ? "border-red-500 bg-red-50" : "border-gray-300"}`}
-              >
-                <option value="">Select Gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-              {renderError("gender")}
-            </div>
-
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">PAN No</label>
-              <input
-                type="text"
-                name="panNo"
-                placeholder="ABCDE1234F"
-                value={formData.panNo}
-                onChange={handleChange}
-                className={`p-3 text-sm border rounded-md uppercase w-full ${errors.panNo ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('panNo')}
-            </div>
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="bg-white shadow-sm border border-gray-200 overflow-hidden mb-2">
+          <div className="bg-blue-900 px-6 py-2" style={{ backgroundColor: '#1B2951' }}>
+            <h1 className="text-2xl font-bold text-white mb-2">
+              {mode === "edit" ? "Edit User Information" : "User Information Form"}
+            </h1>
           </div>
         </div>
 
-        {/* Contact Information */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3 text-gray-700">Contact Information</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Contact Numbers */}
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Contact No</label>
-              <input
-                type="text"
-                name="contactNo"
-                placeholder="Contact No"
-                value={formData.contactNo}
-                onChange={handleChange}
-                className={`p-3 text-sm border rounded-md w-full ${errors.contactNo ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('contactNo')}
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
+          {/* Personal Information Section */}
+          <div className="bg-white shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-2" style={{ backgroundColor: '#B99D54' }}>
+              <h2 className="text-xl font-semibold text-white flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                </svg>
+                Personal Information
+              </h2>
             </div>
+            <div className="p-8 space-y-3">
+              {/* Uploaded By */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Uploaded By</label>
+                <Controller
+                  name="uploadedBy"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      type="text"
+                      placeholder="Enter uploaded by"
+                      className={inputClass}
+                    />
+                  )}
+                />
+                {renderError('uploadedBy')}
+              </div>
 
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Alternate Contact</label>
-              <input
-                type="text"
-                name="alternateContactNo"
-                placeholder="Alternate Contact"
-                value={formData.alternateContactNo}
-                onChange={handleChange}
-                className={`p-3 text-sm border rounded-md w-full ${errors.alternateContactNo ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('alternateContactNo')}
-            </div>
+              {/* Full Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Controller
+                      name="firstName"
+                      control={control}
+                      render={({ field }) => (
+                        <input
+                          {...field}
+                          type="text"
+                          placeholder="First Name"
+                          className={inputClass}
+                        />
+                      )}
+                    />
+                    {renderError('firstName')}
+                  </div>
+                  <div>
+                    <Controller
+                      name="middleName"
+                      control={control}
+                      render={({ field }) => (
+                        <input
+                          {...field}
+                          type="text"
+                          placeholder="Middle Name"
+                          className={inputClass}
+                        />
+                      )}
+                    />
+                    {renderError('middleName')}
+                  </div>
+                  <div>
+                    <Controller
+                      name="lastName"
+                      control={control}
+                      render={({ field }) => (
+                        <input
+                          {...field}
+                          type="text"
+                          placeholder="Last Name"
+                          className={inputClass}
+                        />
+                      )}
+                    />
+                    {renderError('lastName')}
+                  </div>
+                </div>
+              </div>
 
-            {/* Email Addresses */}
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Email</label>
-              <input
-                type="email"
-                name="mailId"
-                placeholder="Email"
-                value={formData.mailId}
-                onChange={handleChange}
-                className={`p-3 text-sm border rounded-md w-full ${errors.mailId ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('mailId')}
-            </div>
+              {/* Father's Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Father's Name</label>
+                <Controller
+                  name="fatherName"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      type="text"
+                      placeholder="Enter father's name"
+                      className={inputClass}
+                    />
+                  )}
+                />
+                {renderError('fatherName')}
+              </div>
 
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Alternate Email</label>
-              <input
-                type="email"
-                name="alternateMailId"
-                placeholder="Alternate Email"
-                value={formData.alternateMailId}
-                onChange={handleChange}
-                className={`p-3 text-sm border rounded-md w-full ${errors.alternateMailId ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('alternateMailId')}
-            </div>
+              {/* Date of Birth */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Date of Birth</label>
+                <div className="grid grid-cols-3 gap-4">
+                  <Controller
+                    name="dobDay"
+                    control={control}
+                    render={({ field }) => (
+                      <select {...field} className={selectClass}>
+                        <option value="">Day</option>
+                        {Array.from({ length: 31 }, (_, i) => (
+                          <option key={i + 1} value={String(i + 1).padStart(2, "0")}>
+                            {i + 1}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  />
+                  <Controller
+                    name="dobMonth"
+                    control={control}
+                    render={({ field }) => (
+                      <select {...field} className={selectClass}>
+                        <option value="">Month</option>
+                        <option value="01">January</option>
+                        <option value="02">February</option>
+                        <option value="03">March</option>
+                        <option value="04">April</option>
+                        <option value="05">May</option>
+                        <option value="06">June</option>
+                        <option value="07">July</option>
+                        <option value="08">August</option>
+                        <option value="09">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                      </select>
+                    )}
+                  />
+                  <Controller
+                    name="dobYear"
+                    control={control}
+                    render={({ field }) => (
+                      <select {...field} className={selectClass}>
+                        <option value="">Year</option>
+                        {Array.from({ length: 100 }, (_, i) => {
+                          const year = new Date().getFullYear() - i;
+                          return (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    )}
+                  />
+                </div>
+                {renderError('dateOfBirth')}
+              </div>
 
-            {/* Current Location */}
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Current State</label>
-              <DebouncedAutoComplete
-                name="currentState"
-                value={formData.currentState}
-                onChange={handleChange}
-                placeholder="Current State"
-                apiType="states"
-                error={errors.currentState}
-                className={`p-3 text-sm border rounded-md w-full ${errors.currentState ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('currentState')}
-            </div>
-
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Current City</label>
-              <DebouncedAutoComplete
-                name="currentCity"
-                value={formData.currentCity}
-                onChange={handleChange}
-                placeholder="Current City"
-                apiType="cities"
-                error={errors.currentCity}
-                className={`p-3 text-sm border rounded-md w-full ${errors.currentCity ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('currentCity')}
-            </div>
-
-            {/* Preferred Location */}
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Preferred State</label>
-              <DebouncedAutoComplete
-                name="preferredState"
-                value={formData.preferredState}
-                onChange={handleChange}
-                placeholder="Preferred State"
-                apiType="states"
-                error={errors.preferredState}
-                className={`p-3 text-sm border rounded-md w-full ${errors.preferredState ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('preferredState')}
-            </div>
-
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Preferred City</label>
-              <DebouncedAutoComplete
-                name="preferredCity"
-                value={formData.preferredCity}
-                onChange={handleChange}
-                placeholder="Preferred City"
-                apiType="cities"
-                error={errors.preferredCity}
-                className={`p-3 text-sm border rounded-md w-full ${errors.preferredCity ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('preferredCity')}
+              {/* Gender and PAN */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
+                  <Controller
+                    name="gender"
+                    control={control}
+                    render={({ field }) => (
+                      <select {...field} className={selectClass}>
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    )}
+                  />
+                  {renderError('gender')}
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">PAN Number</label>
+                  <Controller
+                    name="panNo"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="text"
+                        placeholder="ABCDE1234F"
+                        className={`${inputClass} uppercase`}
+                      />
+                    )}
+                  />
+                  {renderError('panNo')}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Professional Information */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3 text-gray-700">Professional Information</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Current Employer</label>
-              <input
-                type="text"
-                name="currentEmployer"
-                placeholder="Current Employer"
-                value={formData.currentEmployer}
-                onChange={handleChange}
-                className={`p-3 text-sm border rounded-md w-full ${errors.currentEmployer ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('currentEmployer')}
+          {/* Contact Information Section */}
+          <div className="bg-white  shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-2" style={{ backgroundColor: '#B99D54' }}>
+              <h2 className="text-xl font-semibold text-white flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                </svg>
+                Contact Information
+              </h2>
             </div>
+            <div className="p-8 space-y-2">
+              {/* Contact Numbers */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Primary Contact</label>
+                  <Controller
+                    name="contactNo"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="text"
+                        placeholder="Enter contact number"
+                        className={inputClass}
+                      />
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Alternate Contact</label>
+                  <Controller
+                    name="alternateContactNo"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="text"
+                        placeholder="Enter alternate contact"
+                        className={inputClass}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
 
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Designation</label>
-              <input
-                type="text"
-                name="designation"
-                placeholder="Designation"
-                value={formData.designation}
-                onChange={handleChange}
-                className={`p-3 text-sm border rounded-md w-full ${errors.designation ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('designation')}
+              {/* Email Addresses */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Primary Email</label>
+                  <Controller
+                    name="mailId"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="email"
+                        placeholder="Enter email address"
+                        className={inputClass}
+                      />
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Alternate Email</label>
+                  <Controller
+                    name="alternateMailId"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="email"
+                        placeholder="Enter alternate email"
+                        className={inputClass}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Current Location */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">Current Location</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">State</label>
+                    <Controller
+                      name="currentState"
+                      control={control}
+                      render={({ field }) => (
+                        <DebouncedAutoComplete
+                          name="currentState"
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select current state"
+                          apiType="states"
+                          className={inputClass}
+                        />
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
+                    <Controller
+                      name="currentCity"
+                      control={control}
+                      render={({ field }) => (
+                        <DebouncedAutoComplete
+                          name="currentCity"
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select current city"
+                          apiType="cities"
+                          className={inputClass}
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Preferred Location */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">Preferred Location</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">State</label>
+                    <Controller
+                      name="preferredState"
+                      control={control}
+                      render={({ field }) => (
+                        <DebouncedAutoComplete
+                          name="preferredState"
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select preferred state"
+                          apiType="states"
+                          className={inputClass}
+                        />
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
+                    <Controller
+                      name="preferredCity"
+                      control={control}
+                      render={({ field }) => (
+                        <DebouncedAutoComplete
+                          name="preferredCity"
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select preferred city"
+                          apiType="cities"
+                          className={inputClass}
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">Department</label>
-              <select
-                name="department"
-                value={formData.department}
-                onChange={handleChange}
-                className={`p-3 text-sm border rounded-md w-full ${errors.department ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              >
-                <option value="">Select Department</option>
-                <option value="Agency">Agency</option>
-                <option value="Banca">Banca</option>
-                <option value="Direct">Direct</option>
-                <option value="Training">Training</option>
-                <option value="Operations / Back-office">Operations / Back-office</option>
-                <option value="Underwriting">Underwriting</option>
-                <option value="NPS">NPS</option>
-                <option value="Strategy">Strategy</option>
-                <option value="Product Development">Product Development</option>
-                <option value="Claims Management">Claims Management</option>
-                <option value="Retention">Retention</option>
-                <option value="Actuarial">Actuarial</option>
-                <option value="Broking Channel">Broking Channel</option>
-                <option value="SME Agency">SME Agency</option>
-                <option value="Defence">Defence</option>
-                <option value="Reinsurance">Reinsurance</option>
-                <option value="Online/Digital Sales">Online/Digital Sales</option>
-                <option value="Telly - VRM">Telly - VRM</option>
-                <option value="Policy Servicing / Customer Service">Policy Servicing / Customer Service</option>
-                <option value="Compliance & Legal">Compliance & Legal</option>
-                <option value="Risk Management">Risk Management</option>
-                <option value="Regulatory compliance">Regulatory compliance</option>
-                <option value="Finance & Accounts">Finance & Accounts</option>
-                <option value="Investments / Fund Management">Investments / Fund Management</option>
-                <option value="Human Resources (HR)">Human Resources (HR)</option>
-                <option value="IT / Technology">IT / Technology</option>
-                <option value="Administration & Facilities">Administration & Facilities</option>
-                <option value="Marketing & Brand Management">Marketing & Brand Management</option>
-                <option value="Analytics & Business Intelligence">Analytics & Business Intelligence</option>
-                <option value="Partnership & Alliances Acquisition">Partnership & Alliances Acquisition</option>
-                <option value="Corporate Sales">Corporate Sales</option>
-                <option value="OEM">OEM</option>
-                <option value="Group Insurance">Group Insurance</option>
-                <option value="Other">Other</option>
-              </select>
+          {/* Professional Information Section */}
+          <div className="bg-white shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-2" style={{ backgroundColor: '#B99D54' }}>
+              <h2 className="text-xl font-semibold text-white flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v6.5A2.5 2.5 0 0115.5 17h-11A2.5 2.5 0 012 14.5V8a2 2 0 012-2h2zm4-1a1 1 0 00-1 1v1h2V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                Professional Information
+              </h2>
+            </div>
+            <div className="p-8 space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Current Employer</label>
+                  <Controller
+                    name="currentEmployer"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="text"
+                        placeholder="Enter current employer"
+                        className={inputClass}
+                      />
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Designation</label>
+                  <Controller
+                    name="designation"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="text"
+                        placeholder="Enter designation"
+                        className={inputClass}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
 
-              {/* If "Other" is selected, show input box */}
-              {formData.department === "Other" && (
-                <input
-                  type="text"
-                  name="customDepartment"
-                  placeholder="Enter department"
-                  value={formData.customDepartment || ""}
-                  onChange={handleChange}
-                  className="mt-2 p-3 text-sm border rounded-md w-full border-gray-300"
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Department</label>
+                  <Controller
+                    name="department"
+                    control={control}
+                    render={({ field }) => (
+                      <div className="space-y-3">
+                        <select {...field} className={selectClass}>
+                          <option value="">Select Department</option>
+                          <option value="Agency">Agency</option>
+                          <option value="Banca">Banca</option>
+                          <option value="Direct">Direct</option>
+                          <option value="Training">Training</option>
+                          <option value="Operations / Back-office">Operations / Back-office</option>
+                          <option value="Underwriting">Underwriting</option>
+                          <option value="NPS">NPS</option>
+                          <option value="Strategy">Strategy</option>
+                          <option value="Product Development">Product Development</option>
+                          <option value="Claims Management">Claims Management</option>
+                          <option value="Retention">Retention</option>
+                          <option value="Actuarial">Actuarial</option>
+                          <option value="Broking Channel">Broking Channel</option>
+                          <option value="SME Agency">SME Agency</option>
+                          <option value="Defence">Defence</option>
+                          <option value="Reinsurance">Reinsurance</option>
+                          <option value="Online/Digital Sales">Online/Digital Sales</option>
+                          <option value="Telly - VRM">Telly - VRM</option>
+                          <option value="Policy Servicing / Customer Service">Policy Servicing / Customer Service</option>
+                          <option value="Compliance & Legal">Compliance & Legal</option>
+                          <option value="Risk Management">Risk Management</option>
+                          <option value="Regulatory compliance">Regulatory compliance</option>
+                          <option value="Finance & Accounts">Finance & Accounts</option>
+                          <option value="Investments / Fund Management">Investments / Fund Management</option>
+                          <option value="Human Resources (HR)">Human Resources (HR)</option>
+                          <option value="IT / Technology">IT / Technology</option>
+                          <option value="Administration & Facilities">Administration & Facilities</option>
+                          <option value="Marketing & Brand Management">Marketing & Brand Management</option>
+                          <option value="Analytics & Business Intelligence">Analytics & Business Intelligence</option>
+                          <option value="Partnership & Alliances Acquisition">Partnership & Alliances Acquisition</option>
+                          <option value="Corporate Sales">Corporate Sales</option>
+                          <option value="OEM">OEM</option>
+                          <option value="Group Insurance">Group Insurance</option>
+                          <option value="Other">Other</option>
+                        </select>
+
+                        {watchDepartment === "Other" && (
+                          <Controller
+                            name="customDepartment"
+                            control={control}
+                            render={({ field }) => (
+                              <input
+                                {...field}
+                                type="text"
+                                placeholder="Enter department"
+                                className={inputClass}
+                              />
+                            )}
+                          />
+                        )}
+                      </div>
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">CTC (in Lakhs)</label>
+                  <Controller
+                    name="ctcInLakhs"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="number"
+                        step="0.01"
+                        placeholder="Enter CTC"
+                        className={inputClass}
+                      />
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Total Experience (Years)</label>
+                  <Controller
+                    name="totalExperience"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="number"
+                        step="0.1"
+                        placeholder="Enter experience"
+                        min={5}
+                        max={35}
+                        className={inputClass}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Comments Section */}
+          <div className="bg-white shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-2" style={{ backgroundColor: '#B99D54' }}>
+              <h2 className="text-xl font-semibold text-white flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2zM5 7a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm1 3a1 1 0 100 2h3a1 1 0 100-2H6z" clipRule="evenodd" />
+                </svg>
+                Comments
+              </h2>
+            </div>
+            <div className="p-8 space-y-2">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Comment 1</label>
+                <Controller
+                  name="comment1"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      type="text"
+                      placeholder="Enter comment 1 (max 500 characters)"
+                      className={inputClass}
+                      maxLength="500"
+                    />
+                  )}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Comment 2</label>
+                <Controller
+                  name="comment2"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      type="text"
+                      placeholder="Enter comment 2 (max 500 characters)"
+                      className={inputClass}
+                      maxLength="500"
+                    />
+                  )}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Comment 3</label>
+                <Controller
+                  name="comment3"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      type="text"
+                      placeholder="Enter comment 3 (max 500 characters)"
+                      className={inputClass}
+                      maxLength="500"
+                    />
+                  )}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* File Upload Section */}
+          <div className="bg-white  shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-2" style={{ backgroundColor: '#B99D54' }}>
+              <h2 className="text-xl font-semibold text-white flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+                Upload Document
+              </h2>
+            </div>
+            <div className="p-2">
+              <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center hover:border-gray-400 transition-colors duration-200">
+                <svg
+                  className="w-8 h-8 text-gray-400 mx-auto mb-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  />
+                </svg>
+
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="file-upload"
+                />
+
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer inline-flex items-center px-4 py-2 text-xs text-white font-medium rounded-md transition-all duration-200"
+                  style={{ backgroundColor: "#1B2951" }}
+                >
+                  Choose PDF
+                </label>
+
+                {pdfFile && (
+                  <p className="mt-2 text-xs text-gray-600">Selected: {pdfFile.name}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">PDF only, max 10MB</p>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-4 pb-8">
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-8 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`px-8 py-3 font-semibold rounded-lg transition-all duration-200 flex items-center space-x-2 text-white ${isSubmitting
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "shadow-lg hover:shadow-xl"
+                }`}
+              style={!isSubmitting ? { backgroundColor: '#1B2951' } : {}}
+            >
+              {isSubmitting && (
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
               )}
-
-              {renderError('department')}
-            </div>
-
-
-            <div>
-              <label className="block text-gray-600 text-sm font-medium mb-1">CTC (in Lakhs)</label>
-              <input
-                type="number"
-                step="0.01"
-                name="ctcInLakhs"
-                placeholder="CTC in Lakhs"
-                value={formData.ctcInLakhs}
-                onChange={handleChange}
-                className={`p-3 text-sm border rounded-md w-full ${errors.ctcInLakhs ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('ctcInLakhs')}
-            </div>
-
-            <div className="md:col-span-1">
-              <label className="block text-gray-600 text-sm font-medium mb-1">Total Experience (Years)</label>
-              <input
-                type="number"
-                step="1"
-                name="totalExperience"
-                placeholder="Total Experience (Years)"
-                value={formData.totalExperience}
-                onChange={handleChange}
-                min={5}
-                max={35}
-                className={`p-3 text-sm border rounded-md w-full ${errors.totalExperience ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-              />
-              {renderError('totalExperience')}
-            </div>
+              <span>
+                {isSubmitting
+                  ? "Processing..."
+                  : mode === "edit"
+                    ? "Update Information"
+                    : "Submit Form"}
+              </span>
+            </button>
           </div>
-        </div>
-
-        {/* Comments */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3 text-gray-700">Comments</h3>
-
-          {formData.comments.map((comment, index) => (
-            <div key={index} className="mb-3">
-              <input
-                type="text"
-                placeholder={`Comment ${index + 1} (max 500 characters)`}
-                value={comment}
-                onChange={(e) => handleCommentChange(index, e.target.value)}
-                className={`p-3 border rounded-md w-full text-sm ${errors[`comment${index + 1}`]
-                  ? "border-red-500 bg-red-50"
-                  : "border-gray-300"
-                  }`}
-                maxLength="500"
-              />
-              {renderError(`comment${index + 1}`)}
-            </div>
-          ))}
-
-          {formData.comments.length < 3 && (
-            <button
-              type="button"
-              onClick={addComment}
-              className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-            >
-              + Add Comment
-            </button>
-          )}
-        </div>
-
-        {/* File Upload */}
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-3 text-gray-700">Upload PDF</h3>
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={handleFileChange}
-            className="p-3 text-sm border border-gray-300 rounded-md w-full 
-      file:mr-4 file:py-2 file:px-4 file:rounded-md 
-      file:border-0 file:bg-blue-50 file:text-blue-600 
-      hover:file:bg-blue-100 file:cursor-pointer"
-          />
-        </div>
-
-        {/* Buttons */}
-        <div className="flex gap-4 justify-end">
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-gray-200 px-6 py-3 rounded-md text-sm font-medium hover:bg-gray-300 transition-colors"
-            >
-              Cancel
-            </button>
-          )}
-
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={handleSubmit}
-            className={`text-white px-6 py-3 rounded-md font-medium text-sm transition-colors ${isSubmitting
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700"
-              }`}
-          >
-            {isSubmitting
-              ? "Saving..."
-              : mode === "edit"
-                ? "Save Changes"
-                : "Submit Form"}
-          </button>
-        </div>
+        </form>
       </div>
     </div>
   );
