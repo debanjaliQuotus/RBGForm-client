@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import UserForm from "./Form";
-import { Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight, Search, Trash2, Edit, Plus, FileSpreadsheet, RefreshCw, X } from "lucide-react";
 
 const AdminPage = () => {
     const [users, setUsers] = useState([]);
@@ -13,6 +13,7 @@ const AdminPage = () => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [downloadLoading, setDownloadLoading] = useState({});
 
     const [filters, setFilters] = useState({
         search: "",
@@ -29,13 +30,17 @@ const AdminPage = () => {
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const response = await fetch("http://localhost:5000/forms");
-            if (!response.ok) throw new Error("Failed to fetch users");
+            setError("");
+            const response = await fetch("http://localhost:5000/forms?limit=1000");
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
-            setUsers(data.data || []);
-            setFilteredUsers(data.data || []);
+            const usersArray = data.data || [];
+            setUsers(usersArray);
+            setFilteredUsers(usersArray);
         } catch (err) {
-            console.error(err);
+            console.error("Fetch error:", err);
             setError("Error fetching user data: " + err.message);
         } finally {
             setLoading(false);
@@ -157,359 +162,580 @@ const AdminPage = () => {
         setCurrentPage(1);
     };
 
-    // Pagination
+    // Format date for display
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        } catch (error) {
+            return 'Invalid Date';
+        }
+    };
+
+    // Pagination calculations
     const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
-    // Delete
+    // Generate page numbers for pagination
+    const generatePageNumbers = () => {
+        const pages = [];
+        const maxVisiblePages = 5;
+
+        if (totalPages <= maxVisiblePages) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            if (currentPage <= 3) {
+                for (let i = 1; i <= 4; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            } else if (currentPage >= totalPages - 2) {
+                pages.push(1);
+                pages.push('...');
+                for (let i = totalPages - 3; i <= totalPages; i++) {
+                    pages.push(i);
+                }
+            } else {
+                pages.push(1);
+                pages.push('...');
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            }
+        }
+        return pages;
+    };
+
+    // Delete user with better error handling
     const handleDelete = async (id) => {
         if (!window.confirm("Are you sure you want to delete this user?")) return;
+
         try {
-            await fetch(`http://localhost:5000/forms/${id}`, { method: "DELETE" });
+            const response = await fetch(`http://localhost:5000/forms/${id}`, {
+                method: "DELETE",
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to delete user: ${response.status}`);
+            }
+
             const updatedUsers = users.filter((u) => u._id !== id);
             setUsers(updatedUsers);
-            setFilteredUsers(updatedUsers);
+            applyFilters(updatedUsers, filters);
+
+            // Show success message
+            alert("User deleted successfully!");
         } catch (err) {
-            console.error(err);
+            console.error("Delete error:", err);
+            alert("Failed to delete user: " + err.message);
         }
     };
 
-    // Download PDF
-    const downloadPDF = async (fileName, userName) => {
-        const url = `http://localhost:5000/uploads/${fileName}`;
+    // Fixed PDF download function
+    const downloadPDF = async (pdfFile, userName) => {
+        if (!pdfFile || !pdfFile.filename) {
+            alert("No PDF file available for this user");
+            return;
+        }
+
+        const userId = pdfFile.filename; // or however you identify the download
+        setDownloadLoading(prev => ({ ...prev, [userId]: true }));
+
         try {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = `${userName || "user"}_resume.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(a.href);
+            // Try different URL patterns based on your backend setup
+            const possibleUrls = [
+                `http://localhost:5000/uploads/${pdfFile.filename}`,
+                `http://localhost:5000/api/files/${pdfFile.filename}`,
+                `http://localhost:5000/download/${pdfFile.filename}`,
+                `http://localhost:5000/files/${pdfFile.filename}`
+            ];
+
+            let downloadSuccess = false;
+            let lastError = null;
+
+            for (const url of possibleUrls) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/pdf'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+
+                        // Check if the blob is actually a PDF
+                        if (blob.type === 'application/pdf' || blob.size > 0) {
+                            const downloadUrl = window.URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = downloadUrl;
+                            a.download = `${userName?.replace(/\s+/g, '_') || "user"}_resume.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(downloadUrl);
+                            downloadSuccess = true;
+                            break;
+                        }
+                    }
+                } catch (urlError) {
+                    lastError = urlError;
+                    continue;
+                }
+            }
+
+            if (!downloadSuccess) {
+                throw new Error("PDF file not found on server or file is corrupted");
+            }
+
         } catch (err) {
             console.error("Download failed:", err);
+            alert(`Failed to download PDF: ${err.message}`);
+        } finally {
+            setDownloadLoading(prev => ({ ...prev, [userId]: false }));
         }
     };
 
-    // Export Excel
+    // Fixed Excel export
     const handleExportExcel = async () => {
         try {
-            const response = await fetch("http://localhost:5000/forms/download/export-excel");
-            if (!response.ok) throw new Error("Failed to download Excel file");
+            const response = await fetch("http://localhost:5000/forms/download/export-excel", {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+            }
+
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = "users.xlsx";
+            a.download = `users_export_${new Date().toISOString().split('T')[0]}.xlsx`;
             document.body.appendChild(a);
             a.click();
-            a.remove();
+            document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
         } catch (err) {
-            console.error(err);
-            alert("Failed to export Excel");
+            console.error("Export error:", err);
+            alert("Failed to export Excel file: " + err.message);
         }
     };
 
-    if (loading)
+    // Handle form success (for both add and edit)
+    const handleFormSuccess = () => {
+        setIsAddModalOpen(false);
+        setIsEditModalOpen(false);
+        setSelectedUser(null);
+        fetchUsers(); // Refresh the data
+    };
+
+    // Handle edit button click
+    const handleEditClick = (user) => {
+        console.log('Edit user data:', user); // Debug log
+        setSelectedUser(user);
+        setIsEditModalOpen(true);
+    };
+
+    if (loading) {
         return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="flex justify-center items-center h-64 bg-gray-50">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B2951]"></div>
+                <span className="ml-2 text-[#1B2951]">Loading users...</span>
             </div>
         );
+    }
 
-    if (error)
+    if (error) {
         return (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-                <p className="font-medium">Error loading data</p>
-                <p className="text-sm">{error}</p>
+            <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-700 m-4">
+                <p className="font-medium text-sm">Error loading data</p>
+                <p className="text-xs">{error}</p>
                 <button
                     onClick={fetchUsers}
-                    className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
                 >
                     Retry
                 </button>
             </div>
         );
+    }
 
     return (
-        <div className="p-6 bg-gray-100 min-h-screen">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-4">
-                <h1 className="text-2xl font-bold text-gray-700">Admin Panel</h1>
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setIsAddModalOpen(true)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700"
-                    >
-                        + Add User
-                    </button>
-                    <button
-                        onClick={handleExportExcel}
-                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                    >
-                        Export Excel
-                    </button>
-                    <button
-                        onClick={fetchUsers}
-                        className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-                    >
-                        Refresh Data
-                    </button>
+        <div className="p-3 bg-gray-50 min-h-screen">
+            <div className="bg-white rounded-lg shadow-md border border-gray-200">
+                {/* Header */}
+                <div className="px-4 py-3 border-b border-gray-200 bg-[#1B2951]">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h1 className="text-lg font-semibold text-white">Admin Management Dashboard</h1>
+                            <p className="text-[#B99D54] text-sm mt-0.5">
+                                Total: {filteredUsers.length} users {filteredUsers.length !== users.length && `(filtered from ${users.length})`}
+                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setIsAddModalOpen(true)}
+                                className="px-3 py-1.5 bg-[#B99D54] text-white rounded text-sm hover:bg-[#B99D54]/90 transition-colors flex items-center gap-1"
+                            >
+                                <Plus className="h-3 w-3" />
+                                Add User
+                            </button>
+                            <button
+                                onClick={handleExportExcel}
+                                className="px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors flex items-center gap-1"
+                            >
+                                <FileSpreadsheet className="h-3 w-3" />
+                                Export Excel
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            {/* Filters */}
-            <div className="p-4 bg-gray-50 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <input
-                    type="text"
-                    placeholder="Search name, email, phone..."
-                    className="px-3 py-2 border rounded w-full"
-                    value={filters.search}
-                    onChange={(e) => handleFilterChange("search", e.target.value)}
-                />
-                <select
-                    className="px-3 py-2 border rounded"
-                    value={filters.gender}
-                    onChange={(e) => handleFilterChange("gender", e.target.value)}
-                >
-                    <option value="">All Genders</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                </select>
-                <input
-                    type="text"
-                    placeholder="Current State"
-                    className="px-3 py-2 border rounded"
-                    value={filters.currentState}
-                    onChange={(e) => handleFilterChange("currentState", e.target.value)}
-                />
-                <input
-                    type="text"
-                    placeholder="Preferred State"
-                    className="px-3 py-2 border rounded"
-                    value={filters.preferredState}
-                    onChange={(e) => handleFilterChange("preferredState", e.target.value)}
-                />
-                <input
-                    type="text"
-                    placeholder="Designation"
-                    className="px-3 py-2 border rounded"
-                    value={filters.designation}
-                    onChange={(e) => handleFilterChange("designation", e.target.value)}
-                />
-                <input
-                    type="text"
-                    placeholder="Department"
-                    className="px-3 py-2 border rounded"
-                    value={filters.department}
-                    onChange={(e) => handleFilterChange("department", e.target.value)}
-                />
-                <select
-                    className="px-3 py-2 border rounded"
-                    value={filters.experienceRange}
-                    onChange={(e) => handleFilterChange("experienceRange", e.target.value)}
-                >
-                    <option value="">All Experience</option>
-                    <option value="0-2">0-2 yrs</option>
-                    <option value="3-5">3-5 yrs</option>
-                    <option value="6-10">6-10 yrs</option>
-                    <option value="10+">10+ yrs</option>
-                </select>
-                <select
-                    className="px-3 py-2 border rounded"
-                    value={filters.ctcRange}
-                    onChange={(e) => handleFilterChange("ctcRange", e.target.value)}
-                >
-                    <option value="">All CTC</option>
-                    <option value="0-5">0-5 L</option>
-                    <option value="5-10">5-10 L</option>
-                    <option value="10-15">10-15 L</option>
-                    <option value="15+">15+ L</option>
-                </select>
+                {/* Filters */}
+                <div className="p-3 border-b border-gray-200 bg-gray-50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                        {/* Search */}
+                        <div className="relative">
+                            <Search className="absolute left-2 top-3 h-3 w-3 text-gray-500" />
+                            <input
+                                type="text"
+                                placeholder="Search name, email, phone..."
+                                className="pl-7 pr-2 py-1.5 border border-gray-300 rounded text-sm w-full focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                                value={filters.search}
+                                onChange={(e) => handleFilterChange('search', e.target.value)}
+                            />
+                        </div>
 
-                <button
-                    onClick={clearFilters}
-                    className="px-4 py-2 bg-gray-200 rounded mt-2"
-                >
-                    Clear Filters
-                </button>
-            </div>
+                        {/* Gender */}
+                        <select
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            value={filters.gender}
+                            onChange={(e) => handleFilterChange('gender', e.target.value)}
+                        >
+                            <option value="">All Genders</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
 
-            {/* Users Table */}
-            <div className="bg-white shadow rounded-lg overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Name
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Contact
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Location
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Employment
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Experience
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                CTC
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Actions
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {currentUsers.length > 0 ? (
-                            currentUsers.map((user) => (
-                                <tr key={user._id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-medium text-gray-900">
-                                            {`${user.firstName || ""} ${user.middleName || ""} ${user.lastName || ""}`.trim()}
+                        {/* Current State */}
+                        <input
+                            type="text"
+                            placeholder="Current state"
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            value={filters.currentState}
+                            onChange={(e) => handleFilterChange('currentState', e.target.value)}
+                        />
+
+                        {/* Preferred State */}
+                        <input
+                            type="text"
+                            placeholder="Preferred state"
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            value={filters.preferredState}
+                            onChange={(e) => handleFilterChange('preferredState', e.target.value)}
+                        />
+
+                        {/* Designation */}
+                        <input
+                            type="text"
+                            placeholder="Designation"
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            value={filters.designation}
+                            onChange={(e) => handleFilterChange('designation', e.target.value)}
+                        />
+
+                        {/* Department */}
+                        <input
+                            type="text"
+                            placeholder="Department"
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            value={filters.department}
+                            onChange={(e) => handleFilterChange('department', e.target.value)}
+                        />
+
+                        {/* Experience Range */}
+                        <select
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            value={filters.experienceRange}
+                            onChange={(e) => handleFilterChange('experienceRange', e.target.value)}
+                        >
+                            <option value="">All Experience</option>
+                            <option value="0-2">0-2 years</option>
+                            <option value="3-5">3-5 years</option>
+                            <option value="6-10">6-10 years</option>
+                            <option value="10+">10+ years</option>
+                        </select>
+
+                        {/* CTC Range */}
+                        <select
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            value={filters.ctcRange}
+                            onChange={(e) => handleFilterChange('ctcRange', e.target.value)}
+                        >
+                            <option value="">All CTC</option>
+                            <option value="0-5">0-5 Lakhs</option>
+                            <option value="5-10">5-10 Lakhs</option>
+                            <option value="10-15">10-15 Lakhs</option>
+                            <option value="15+">15+ Lakhs</option>
+                        </select>
+                    </div>
+
+                    <div className="mt-2 flex justify-between items-center">
+                        <button
+                            onClick={clearFilters}
+                            className="px-3 py-1.5 text-[#1B2951] hover:text-[#B99D54] hover:bg-gray-100 rounded text-sm transition-colors"
+                        >
+                            Clear Filters
+                        </button>
+                        <button
+                            onClick={fetchUsers}
+                            className="px-3 py-1.5 bg-[#1B2951] text-white rounded text-sm hover:bg-[#1B2951]/90 transition-colors flex items-center gap-1"
+                        >
+                            <RefreshCw className="h-3 w-3" />
+                            Refresh Data
+                        </button>
+                    </div>
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-[#1B2951]">
+                            <tr>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Personal Details</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Contact</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Location</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Employment</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Experience</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Comments</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                            {currentUsers.map((user, index) => (
+                                <tr key={user._id || `user-${index}`} className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                                    <td className="px-3 py-2">
+                                        <div className="text-sm font-medium text-[#1B2951]">
+                                            {`${user.firstName || ''} ${user.middleName || ''} ${user.lastName || ''}`.trim()}
                                         </div>
-                                        <div className="text-sm text-gray-500">{user.gender}</div>
-                                        <div className="text-sm text-gray-500">DOB: {user.dateOfBirth}</div>
+                                        <div className="text-sm text-[#1B2951]">{user.gender}</div>
+                                        <div className="text-sm text-[#1B2951] font-medium">DOB: {formatDate(user.dateOfBirth)}</div>
+                                        <div className="text-sm text-[#1B2951] font-medium">Father's name: {user.fatherName}</div>
+                                        <div className="text-sm text-[#1B2951] font-medium">PAN no: {user.panNo}</div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900">{user.contactNo}</div>
-                                        <div className="text-sm text-gray-500">{user.mailId}</div>
+                                    <td className="px-3 py-2">
+                                        <div className="text-sm text-[#1B2951] font-medium">{user.contactNo}</div>
                                         {user.alternateContactNo && (
-                                            <div className="text-sm text-gray-500">Alt: {user.alternateContactNo}</div>
+                                            <div className="text-sm text-[#1B2951]">Alt: {user.alternateContactNo}</div>
+                                        )}
+                                        <div className="text-sm text-[#1B2951] font-medium">{user.mailId}</div>
+                                        {user.alternateMailId && (
+                                            <div className="text-sm text-[#1B2951]">Alt: {user.alternateMailId}</div>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900">
-                                            Current: {user.currentCity}, {user.currentState}
+                                    <td className="px-3 py-2">
+                                        <div className="text-sm text-[#1B2951]">
+                                            <span className="font-medium">Current:</span> {user.currentCity}, {user.currentState}
                                         </div>
-                                        <div className="text-sm text-gray-500">
-                                            Preferred: {user.preferredCity}, {user.preferredState}
+                                        <div className="text-sm text-[#1B2951]">
+                                            <span className="font-medium">Preferred:</span> {user.preferredCity}, {user.preferredState}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-medium text-gray-900">{user.currentEmployer}</div>
-                                        <div className="text-sm text-gray-500">{user.designation}</div>
-                                        <div className="text-sm text-gray-500">{user.department}</div>
+                                    <td className="px-3 py-2">
+                                        <div className="text-sm font-medium text-[#1B2951]">Current Employer: {user.currentEmployer}</div>
+                                        <div className="text-sm text-[#1B2951]">Designation: {user.designation}</div>
+                                        <div className="text-sm text-[#1B2951]">Department: {user.department}</div>
+                                        <div className="text-sm text-[#1B2951]">CTC: ₹{user.ctcInLakhs} L</div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                            {user.totalExperience} yrs
+                                    <td className="px-3 py-2">
+                                        <div className="flex items-center justify-center">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#B99D54]/20 text-[#1B2951] border border-[#B99D54]/30">
+                                                {user.totalExperience} yrs
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <span className="">
+                                            <ul className="list-disc pl-4">
+                                                {[user.comment1, user.comment2, user.comment3].map(
+                                                    (comment, idx) =>
+                                                        comment && (
+                                                            <li key={idx} className="text-sm text-[#1B2951]">
+                                                                {comment}
+                                                            </li>
+                                                        )
+                                                )}
+                                            </ul>
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            ₹{user.ctcInLakhs} L
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap flex gap-2">
-                                        <button
-                                            onClick={() =>
-                                                downloadPDF(user.pdfFile?.filename, `${user.firstName}_${user.lastName}`)
-                                            }
-                                            className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
-                                            title="Download PDF"
-                                        >
-                                            <Download className="h-4 w-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setSelectedUser(user);
-                                                setIsEditModalOpen(true);
-                                            }}
-                                            className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(user._id)}
-                                            className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                                        >
-                                            Delete
-                                        </button>
+                                    <td className="px-3 py-2">
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => downloadPDF(user.pdfFile, `${user.firstName}_${user.lastName}`)}
+                                                disabled={downloadLoading[user.pdfFile?.filename] || !user.pdfFile}
+                                                className={`p-1.5 rounded transition-colors ${!user.pdfFile
+                                                    ? 'text-gray-400 cursor-not-allowed'
+                                                    : downloadLoading[user.pdfFile?.filename]
+                                                        ? 'text-blue-400 cursor-wait'
+                                                        : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
+                                                    }`}
+                                                title={!user.pdfFile ? "No PDF available" : "Download PDF"}
+                                            >
+                                                <Download className={`h-3 w-3 ${downloadLoading[user.pdfFile?.filename] ? 'animate-spin' : ''}`} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleEditClick(user)}
+                                                className="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors"
+                                                title="Edit User"
+                                            >
+                                                <Edit className="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(user._id)}
+                                                className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                                                title="Delete User"
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="7" className="p-4 text-center">
-                                    No users found
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    {currentUsers.length === 0 && (
+                        <div className="text-center py-8">
+                            <p className="text-gray-500 text-sm">No users found matching your criteria.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Enhanced Pagination */}
+                {totalPages > 1 && (
+                    <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+                        <div className="flex items-center justify-between">
+                            <div className="text-sm text-gray-700">
+                                Showing {startIndex + 1} to {Math.min(endIndex, filteredUsers.length)} of {filteredUsers.length} results
+                                <span className="ml-2 text-xs text-gray-500">
+                                    (Page {currentPage} of {totalPages})
+                                </span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                                {/* Previous button */}
+                                <button
+                                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                >
+                                    <ChevronLeft className="h-3 w-3" />
+                                    Previous
+                                </button>
+
+                                {/* Page numbers */}
+                                <div className="flex items-center space-x-1">
+                                    {generatePageNumbers().map((page, index) => (
+                                        <React.Fragment key={index}>
+                                            {page === '...' ? (
+                                                <span className="px-2 py-1.5 text-sm text-gray-500">...</span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setCurrentPage(page)}
+                                                    className={`px-3 py-1.5 rounded text-sm ${currentPage === page
+                                                        ? 'bg-[#1B2951] text-white'
+                                                        : 'border border-gray-300 hover:bg-gray-100 text-[#1B2951]'
+                                                        }`}
+                                                >
+                                                    {page}
+                                                </button>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+
+                                {/* Next button */}
+                                <button
+                                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                >
+                                    Next
+                                    <ChevronRight className="h-3 w-3" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-                <div className="mt-4 flex items-center justify-between">
-                    <div className="text-sm text-gray-700">
-                        Showing {startIndex + 1} to {Math.min(endIndex, filteredUsers.length)} of {filteredUsers.length} results
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                            disabled={currentPage === 1}
-                            className="p-2 border rounded disabled:opacity-50"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                            const pageNum = i + 1;
-                            return (
-                                <button
-                                    key={pageNum}
-                                    onClick={() => setCurrentPage(pageNum)}
-                                    className={`px-3 py-2 rounded ${currentPage === pageNum ? "bg-blue-600 text-white" : "border border-gray-300 hover:bg-gray-50"}`}
-                                >
-                                    {pageNum}
-                                </button>
-                            );
-                        })}
-                        <button
-                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                            disabled={currentPage === totalPages}
-                            className="p-2 border rounded disabled:opacity-50"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Add Modal */}
+            {/* Add User Modal */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
-                    <UserForm
-                        closeModal={() => {
-                            setIsAddModalOpen(false);
-                            fetchUsers();
-                        }}
-                    />
+                <div className="fixed inset-0 bg-black bg-opacity-0 flex justify-center items-center z-50">
+                    <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[95vh] overflow-y-auto p-4 relative">
+                        <button
+                            onClick={() => setIsAddModalOpen(false)}
+                            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                       
+                        <UserForm
+                            mode="add"
+                            onClose={() => setIsAddModalOpen(false)}
+                            onSuccess={handleFormSuccess}
+                        />
+                    </div>
                 </div>
             )}
 
-            {/* Edit Modal */}
+            {/* Edit User Modal */}
             {isEditModalOpen && selectedUser && (
-                <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
-                    <UserForm
-                        user={selectedUser}
-                        closeModal={() => {
-                            setIsEditModalOpen(false);
-                            setSelectedUser(null);
-                            fetchUsers();
-                        }}
-                    />
+                <div className="fixed inset-0 bg-black bg-opacity-0 flex justify-center items-center z-50">
+                    <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[95vh] overflow-y-auto p-4 relative">
+                        <button
+                            onClick={() => {
+                                setIsEditModalOpen(false);
+                                setSelectedUser(null);
+                            }}
+                            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                        <UserForm
+                            mode="edit"
+                            initialData={selectedUser}
+                            onClose={() => {
+                                setIsEditModalOpen(false);
+                                setSelectedUser(null);
+                            }}
+                            onSuccess={handleFormSuccess}
+                        />
+                    </div>
                 </div>
             )}
+
+
         </div>
     );
 };

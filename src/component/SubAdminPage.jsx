@@ -21,19 +21,22 @@ const SubAdminPage = () => {
         ctcRange: ''
     });
 
-    // Fetch all users
+    useEffect(() => {
+        fetchUsers();
+    }, []);
+
+    // Fetch all users (without pagination for client-side filtering)
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const response = await fetch('http://localhost:5000/forms');
+            // Fetch all users by requesting a large limit
+            const response = await fetch('http://localhost:5000/forms?limit=1000');
 
             if (!response.ok) {
                 throw new Error('Failed to fetch users');
             }
 
             const result = await response.json();
-
-            // Access the actual array inside result.data
             const usersArray = result.data || [];
 
             setUsers(usersArray);
@@ -45,8 +48,6 @@ const SubAdminPage = () => {
             setLoading(false);
         }
     };
-
-
 
     // Apply filters
     const applyFilters = (userList, currentFilters) => {
@@ -126,7 +127,7 @@ const SubAdminPage = () => {
         }
 
         setFilteredUsers(filtered);
-        setCurrentPage(1); // Reset to first page when filtering
+        setCurrentPage(1);
     };
 
     // Handle filter changes
@@ -153,32 +154,79 @@ const SubAdminPage = () => {
         setCurrentPage(1);
     };
 
-    // Pagination
+    // Format date for display
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    };
+
+    // Pagination calculations
     const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
+    // Generate page numbers for pagination
+    const generatePageNumbers = () => {
+        const pages = [];
+        const maxVisiblePages = 5;
+        
+        if (totalPages <= maxVisiblePages) {
+            // Show all pages if total is less than max visible
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            // Show pages with ellipsis logic
+            if (currentPage <= 3) {
+                // Show first few pages
+                for (let i = 1; i <= 4; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            } else if (currentPage >= totalPages - 2) {
+                // Show last few pages
+                pages.push(1);
+                pages.push('...');
+                for (let i = totalPages - 3; i <= totalPages; i++) {
+                    pages.push(i);
+                }
+            } else {
+                // Show middle pages
+                pages.push(1);
+                pages.push('...');
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            }
+        }
+        return pages;
+    };
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="flex justify-center items-center h-64 bg-gray-50">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B2951]"></div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-                <p className="font-medium">Error loading data</p>
-                <p className="text-sm">{error}</p>
+            <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-700 m-4">
+                <p className="font-medium text-sm">Error loading data</p>
+                <p className="text-xs">{error}</p>
                 <button
                     onClick={fetchUsers}
-                    className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
                 >
                     Retry
                 </button>
@@ -187,26 +235,26 @@ const SubAdminPage = () => {
     }
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            <div className="bg-white rounded-lg shadow-lg">
+        <div className="p-3 bg-gray-50 min-h-screen">
+            <div className="bg-white rounded-lg shadow-md border border-gray-200">
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-200">
-                    <h1 className="text-2xl font-bold text-gray-800">User Submissions</h1>
-                    <p className="text-gray-600 mt-1">
+                <div className="px-4 py-3 border-b border-gray-200 bg-[#1B2951]">
+                    <h1 className="text-lg font-semibold text-white">Sub-Admin Dashboard</h1>
+                    <p className="text-[#B99D54] text-sm mt-0.5">
                         Total: {filteredUsers.length} users {filteredUsers.length !== users.length && `(filtered from ${users.length})`}
                     </p>
                 </div>
 
                 {/* Filters */}
-                <div className="p-6 border-b border-gray-200 bg-gray-50">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-3 border-b border-gray-200 bg-gray-50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                         {/* Search */}
                         <div className="relative">
-                            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Search className="absolute left-2 top-3 h-3 w-3 text-gray-500" />
                             <input
                                 type="text"
                                 placeholder="Search name, email, phone..."
-                                className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="pl-7 pr-2 py-1.5 border border-gray-300 rounded text-sm w-full focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                                 value={filters.search}
                                 onChange={(e) => handleFilterChange('search', e.target.value)}
                             />
@@ -214,7 +262,7 @@ const SubAdminPage = () => {
 
                         {/* Gender */}
                         <select
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                             value={filters.gender}
                             onChange={(e) => handleFilterChange('gender', e.target.value)}
                         >
@@ -227,8 +275,8 @@ const SubAdminPage = () => {
                         {/* Current State */}
                         <input
                             type="text"
-                            placeholder="Filter by current state"
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            placeholder="Current state"
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                             value={filters.currentState}
                             onChange={(e) => handleFilterChange('currentState', e.target.value)}
                         />
@@ -236,8 +284,8 @@ const SubAdminPage = () => {
                         {/* Preferred State */}
                         <input
                             type="text"
-                            placeholder="Filter by preferred state"
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            placeholder="Preferred state"
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                             value={filters.preferredState}
                             onChange={(e) => handleFilterChange('preferredState', e.target.value)}
                         />
@@ -245,8 +293,8 @@ const SubAdminPage = () => {
                         {/* Designation */}
                         <input
                             type="text"
-                            placeholder="Filter by designation"
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            placeholder="Designation"
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                             value={filters.designation}
                             onChange={(e) => handleFilterChange('designation', e.target.value)}
                         />
@@ -254,15 +302,15 @@ const SubAdminPage = () => {
                         {/* Department */}
                         <input
                             type="text"
-                            placeholder="Filter by department"
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            placeholder="Department"
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                             value={filters.department}
                             onChange={(e) => handleFilterChange('department', e.target.value)}
                         />
 
                         {/* Experience Range */}
                         <select
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                             value={filters.experienceRange}
                             onChange={(e) => handleFilterChange('experienceRange', e.target.value)}
                         >
@@ -275,7 +323,7 @@ const SubAdminPage = () => {
 
                         {/* CTC Range */}
                         <select
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                             value={filters.ctcRange}
                             onChange={(e) => handleFilterChange('ctcRange', e.target.value)}
                         >
@@ -287,16 +335,16 @@ const SubAdminPage = () => {
                         </select>
                     </div>
 
-                    <div className="mt-4 flex justify-between items-center">
+                    <div className="mt-2 flex justify-between items-center">
                         <button
                             onClick={clearFilters}
-                            className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="px-3 py-1.5 text-[#1B2951] hover:text-[#B99D54] hover:bg-gray-100 rounded text-sm transition-colors"
                         >
                             Clear Filters
                         </button>
                         <button
                             onClick={fetchUsers}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="px-3 py-1.5 bg-[#1B2951] text-white rounded text-sm hover:bg-[#1B2951]/90 transition-colors"
                         >
                             Refresh Data
                         </button>
@@ -306,55 +354,76 @@ const SubAdminPage = () => {
                 {/* Table */}
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-[#1B2951]">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employment</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CTC</th>
-
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Upload Details</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Personal Details</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Contact</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Location</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Employment</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Experience</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">Comments</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {currentUsers.map((user) => (
-                                <tr key={user.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-medium text-gray-900">
+                        <tbody className="bg-white divide-y divide-gray-100">
+                            {currentUsers.map((user, index) => (
+                                <tr key={user.id || `user-${index}`} className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                                    <td className="px-3 py-2">
+                                        <div className="text-sm text-[#1B2951] font-medium">Uploaded By: {user.uploadedBy} </div>
+                                        <div className="text-sm text-[#1B2951]">Date of Upload: {formatDate(user.dateOfUpload)}</div>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <div className="text-sm font-medium text-[#1B2951]">
                                             {`${user.firstName || ''} ${user.middleName || ''} ${user.lastName || ''}`.trim()}
                                         </div>
-                                        <div className="text-sm text-gray-500">{user.gender}</div>
-                                        <div className="text-sm text-gray-500">DOB: {user.dateOfBirth}</div>
+                                        <div className="text-sm text-[#1B2951]">{user.gender}</div>
+                                        <div className="text-sm text-[#1B2951] font-medium">DOB: {formatDate(user.dateOfBirth)}</div>
+                                        <div className="text-sm text-[#1B2951] font-medium">Father's name: {user.fatherName}</div>
+                                        <div className="text-sm text-[#1B2951] font-medium">PAN no: {user.panNo}</div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900">{user.contactNo}</div>
-                                        <div className="text-sm text-gray-500">{user.mailId}</div>
+                                    <td className="px-3 py-2">
+                                        <div className="text-sm text-[#1B2951] font-medium">{user.contactNo}</div>
                                         {user.alternateContactNo && (
-                                            <div className="text-sm text-gray-500">Alt: {user.alternateContactNo}</div>
+                                            <div className="text-sm text-[#1B2951]">Alt: {user.alternateContactNo}</div>
+                                        )}
+                                        <div className="text-sm text-[#1B2951] font-medium">{user.mailId}</div>
+                                        {user.alternateMailId && (
+                                            <div className="text-sm text-[#1B2951]">Alt: {user.alternateMailId}</div>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900">
-                                            Current: {user.currentCity}, {user.currentState}
+                                    <td className="px-3 py-2">
+                                        <div className="text-sm text-[#1B2951]">
+                                            <span className="font-medium">Current:</span> {user.currentCity}, {user.currentState}
                                         </div>
-                                        <div className="text-sm text-gray-500">
-                                            Preferred: {user.preferredCity}, {user.preferredState}
+                                        <div className="text-sm text-[#1B2951]">
+                                            <span className="font-medium">Preferred:</span> {user.preferredCity}, {user.preferredState}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-medium text-gray-900">{user.currentEmployer}</div>
-                                        <div className="text-sm text-gray-500">{user.designation}</div>
-                                        <div className="text-sm text-gray-500">{user.department}</div>
+                                    <td className="px-3 py-2">
+                                        <div className="text-sm font-medium text-[#1B2951]">Current Employer: {user.currentEmployer}</div>
+                                        <div className="text-sm text-[#1B2951]">Designation: {user.designation}</div>
+                                        <div className="text-sm text-[#1B2951]">Department: {user.department}</div>
+                                        <div className="text-sm text-[#1B2951]">CTC: ₹{user.ctcInLakhs} L</div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                            {user.totalExperience} years
-                                        </span>
+                                    <td className="px-3 py-2">
+                                        <div className="flex items-center justify-center">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#B99D54]/20 text-[#1B2951] border border-[#B99D54]/30">
+                                                {user.totalExperience} yrs
+                                            </span>
+                                        </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            ₹{user.ctcInLakhs} L
+                                    <td className="px-3 py-2">
+                                        <span className="">
+                                            <ul className="list-disc pl-4">
+                                                {[user.comment1, user.comment2, user.comment3].map(
+                                                    (comment, idx) =>
+                                                        comment && (
+                                                            <li key={idx} className="text-sm text-[#1B2951]">
+                                                                {comment}
+                                                            </li>
+                                                        )
+                                                )}
+                                            </ul>
                                         </span>
                                     </td>
                                 </tr>
@@ -363,50 +432,63 @@ const SubAdminPage = () => {
                     </table>
 
                     {currentUsers.length === 0 && (
-                        <div className="text-center py-12">
-                            <p className="text-gray-500">No users found matching your criteria.</p>
+                        <div className="text-center py-8">
+                            <p className="text-gray-500 text-sm">No users found matching your criteria.</p>
                         </div>
                     )}
                 </div>
 
-                {/* Pagination */}
+                {/* Enhanced Pagination */}
                 {totalPages > 1 && (
-                    <div className="px-6 py-3 border-t border-gray-200">
+                    <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
                         <div className="flex items-center justify-between">
                             <div className="text-sm text-gray-700">
                                 Showing {startIndex + 1} to {Math.min(endIndex, filteredUsers.length)} of {filteredUsers.length} results
+                                <span className="ml-2 text-xs text-gray-500">
+                                    (Page {currentPage} of {totalPages})
+                                </span>
                             </div>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-1">
+                                {/* Previous button */}
                                 <button
                                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                                     disabled={currentPage === 1}
-                                    className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                                 >
-                                    <ChevronLeft className="h-4 w-4" />
+                                    <ChevronLeft className="h-3 w-3" />
+                                    Previous
                                 </button>
 
-                                {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                                    const pageNum = i + 1;
-                                    return (
-                                        <button
-                                            key={pageNum}
-                                            onClick={() => setCurrentPage(pageNum)}
-                                            className={`px-3 py-2 rounded-lg ${currentPage === pageNum
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'border border-gray-300 hover:bg-gray-50'
-                                                }`}
-                                        >
-                                            {pageNum}
-                                        </button>
-                                    );
-                                })}
+                                {/* Page numbers */}
+                                <div className="flex items-center space-x-1">
+                                    {generatePageNumbers().map((page, index) => (
+                                        <React.Fragment key={index}>
+                                            {page === '...' ? (
+                                                <span className="px-2 py-1.5 text-sm text-gray-500">...</span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setCurrentPage(page)}
+                                                    className={`px-3 py-1.5 rounded text-sm ${
+                                                        currentPage === page
+                                                            ? 'bg-[#1B2951] text-white'
+                                                            : 'border border-gray-300 hover:bg-gray-100 text-[#1B2951]'
+                                                    }`}
+                                                >
+                                                    {page}
+                                                </button>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                </div>
 
+                                {/* Next button */}
                                 <button
                                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                                     disabled={currentPage === totalPages}
-                                    className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                                 >
-                                    <ChevronRight className="h-4 w-4" />
+                                    Next
+                                    <ChevronRight className="h-3 w-3" />
                                 </button>
                             </div>
                         </div>

@@ -274,13 +274,20 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
         data.dateOfBirth = `${data.dobYear}-${data.dobMonth.padStart(2, "0")}-${data.dobDay.padStart(2, "0")}`;
       }
 
+      // Append all fields
       Object.keys(data).forEach((key) => {
         if (!["dobDay", "dobMonth", "dobYear"].includes(key)) {
           if (data[key]) {
-            formData.append(key, data[key]);
+            // Ensure DOB stays in YYYY-MM-DD format (string only)
+            if (key === "dateOfBirth") {
+              formData.append(key, data[key].toString());
+            } else {
+              formData.append(key, data[key]);
+            }
           }
         }
       });
+
 
       if (pdfFile) formData.append("pdfFile", pdfFile);
 
@@ -304,6 +311,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       alert(mode === "edit" ? "User updated successfully!" : "Form submitted successfully!");
       if (onSuccess) onSuccess();
       if (onClose) onClose();
+      reset()
     } catch (error) {
       console.error(error);
 
@@ -986,8 +994,8 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
               type="submit"
               disabled={isSubmitting}
               className={`px-8 py-3 font-semibold rounded-lg transition-all duration-200 flex items-center space-x-2 text-white ${isSubmitting
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "shadow-lg hover:shadow-xl"
+                ? "bg-gray-400 cursor-not-allowed"
+                : "shadow-lg hover:shadow-xl"
                 }`}
               style={!isSubmitting ? { backgroundColor: '#1B2951' } : {}}
             >
