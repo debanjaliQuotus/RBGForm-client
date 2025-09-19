@@ -9,6 +9,72 @@ const debounce = (func, delay) => {
   };
 };
 
+// --- START: New Data for Companies ---
+const INSURANCE_COMPANIES = [
+  // Life Insurance
+  "Acko Life Insurance Ltd",
+  "Aditya Birla Sun Life Insurance Co. Ltd",
+  "Ageas Federal Life Insurance Company Limited",
+  "Aviva Life Insurance Company India Limited",
+  "Bajaj Allianz Life Insurance Co. Ltd.",
+  "Bandhan Life Insurance (formerly Aegon Life)",
+  "Canara HSBC Life Insurance Company Limited",
+  "Edelweiss Life Insurance Company Limited",
+  "Future Generali India Life Insurance Company limited",
+  "Go Digit Life Insurance Limited",
+  "HDFC Life Insurance Co. Ltd",
+  "ICICI Prudential Life Insurance Co. Ltd",
+  "IndiaFirst Life Insurance Company Limited",
+  "Kotak Mahindra life Insurance Co. Ltd",
+  "Life Insurance Corporation of India",
+  "PNB MetLife India Insurance Company Limited",
+  "Reliance Nippon Life Insurance Company Limited",
+  "Sahara India Life Insurance Company Limited",
+  "SBI Life Insurance Co. Ltd",
+  "Shriram Life Insurance Company Limited",
+  "Star Union Dai-ichi Life Insurance Company Limited",
+  "TATA AIA Life Insurance Co. Ltd",
+  // General Insurance
+  "Acko General Insurance Ltd",
+  "Agriculture Insurance Company of India Limited",
+  "Bajaj Allianz General Insurance",
+  "Cholamandalam MS General Insurance Company Limited",
+  "ECGC Limited",
+  "Go Digit General Insurance Limited",
+  "HDFC ERGO General Insurance Company Limited",
+  "ICICI Lombard General Insurance",
+  "IFFCO TOKIO General Insurance Company Limited",
+  "Kotak Mahindra General Insurance",
+  "Liberty General Insurance Limited",
+  "Magma HDI General Insurance Company Limited",
+  "National Insurance Company Limited",
+  "Navi General Insurance Limited",
+  "New India Assurance",
+  "Raheja QBE General Insurance Co. Ltd.",
+  "Reliance General Insurance",
+  "Royal Sundaram General Insurance",
+  "SBI General Insurance",
+  "Shriram General Insurance",
+  "Tata AIG General Insurance",
+  "The Oriental Insurance Co",
+  "United India Insurance Co",
+  "Universal Sompo General Insurance",
+  "Zuno General Insurance (formerly Edelweiss)",
+  // Health Insurance
+  "Aditya Birla Health Insurance",
+  "Care Health Insurance",
+  "ManipalCigna Health Insurance",
+  "Niva Bupa Health Insurance",
+  "Star Health & Allied Insurance",
+  "Galaxy Health Insurance Company Limited",
+  "Narayana Health Insurance Ltd",
+  // Insurance Broker
+  "Marsh India Insurance Brokers",
+  "Mahindra Insurance Brokers Ltd",
+  "Policybazaar Insurance Brokers Pvt. Ltd",
+  "Howden Insurance Brokers India Pvt. Ltd",
+];
+
 const INDIAN_STATES = [
   "Andhra Pradesh",
   "Arunachal Pradesh",
@@ -86,6 +152,21 @@ const LOCATION_APIS = {
       return [];
     }
   },
+
+  // Companies - using local data
+  companies: async (query) => {
+    if (!query) return [];
+    try {
+      const filteredCompanies = INSURANCE_COMPANIES.filter((company) =>
+        company.toLowerCase().includes(query.toLowerCase())
+      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return filteredCompanies.slice(0, 10);
+    } catch (err) {
+      console.error("❌ Companies filtering failed:", err);
+      return [];
+    }
+  },
 };
 
 // Enhanced Debounced Autocomplete with API Integration
@@ -105,7 +186,7 @@ const DebouncedAutoComplete = ({
 
   const fetchOptions = useCallback(
     debounce(async (searchValue) => {
-      if (searchValue && searchValue.length >= 2) {
+      if (searchValue && searchValue.length >= 1) { // Changed to 1 for better UX
         setIsLoading(true);
         try {
           const results = await LOCATION_APIS[apiType](searchValue);
@@ -123,7 +204,7 @@ const DebouncedAutoComplete = ({
         setIsOpen(false);
         setIsLoading(false);
       }
-    }, 500),
+    }, 300), // Reduced debounce time for faster feedback
     [apiType]
   );
 
@@ -167,9 +248,8 @@ const DebouncedAutoComplete = ({
         placeholder={placeholder}
         className={className}
         onFocus={() => {
-          if (filteredOptions.length > 0) {
-            setIsOpen(true);
-          }
+            // Re-check options on focus if input has value
+            if(inputValue) fetchOptions(inputValue);
         }}
         autoComplete="off"
       />
@@ -179,7 +259,7 @@ const DebouncedAutoComplete = ({
         </div>
       )}
       {isOpen && (
-        <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+        <div className="absolute z-20 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option, index) => (
               <div
@@ -200,7 +280,6 @@ const DebouncedAutoComplete = ({
     </div>
   );
 };
-
 const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   const [documentFile, setdocumentFile] = useState(null);
   const [errors, setErrors] = useState({});
@@ -878,22 +957,23 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
             <div className="p-8 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Current Employer
-                  </label>
-                  <Controller
-                    name="currentEmployer"
-                    control={control}
-                    render={({ field }) => (
-                      <input
-                        {...field}
-                        type="text"
-                        placeholder="Enter current employer"
-                        className={inputClass}
-                      />
-                    )}
-                  />
-                </div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Current Employer
+                        </label>
+                        {/* --- START: Updated Field --- */}
+                        <Controller
+                            name="currentEmployer"
+                            control={control}
+                            render={({ field }) => (
+                                <DebouncedAutoComplete
+                                    {...field}
+                                    placeholder="Start typing an employer name..."
+                                    apiType="companies"
+                                    className={inputClass}
+                                />
+                            )}
+                        />
+                    </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Designation
@@ -925,8 +1005,77 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                         <select {...field} className={selectClass}>
                           <option value="">Select Department</option>
                           <option value="Agency">Agency</option>
+                          <option value="Banca">Banca</option>
+                          <option value="Direct">Direct</option>
+                          <option value="Training">Training</option>
+                          <option value="Operations / Back-office">
+                            Operations / Back-office
+                          </option>
+                          <option value="Underwriting">Underwriting</option>
+                          <option value="NPS">NPS</option>
+                          <option value="Strategy">Strategy</option>
+                          <option value="Product Development">
+                            Product Development
+                          </option>
+                          <option value="Claims Management">
+                            Claims Management
+                          </option>
+                          <option value="Retension">Retension</option>
+                          <option value="Actuarial">Actuarial</option>
+                          <option value="Broking Channel">
+                            Broking Channel
+                          </option>
+                          <option value="SME Agency">SME Agency</option>
+                          <option value="Defence">Defence</option>
+                          <option value="Reinsurance">Reinsurance</option>
+                          <option value="Online/Digital Sales">
+                            Online/Digital Sales
+                          </option>
+                          <option value="Telly - VRM">Telly - VRM</option>
+                          <option value="Policy Servicing / Customer Service">
+                            Policy Servicing / Customer Service
+                          </option>
+                          <option value="Compliance & Legal">
+                            Compliance & Legal
+                          </option>
+                          <option value="Risk Management">
+                            Risk Management
+                          </option>
+                          <option value="Regulatory compliance">
+                            Regulatory compliance
+                          </option>
+                          <option value="Finance & Accounts">
+                            Finance & Accounts
+                          </option>
+                          <option value="Investments / Fund Management">
+                            Investments / Fund Management
+                          </option>
+                          <option value="Human Resources (HR)">
+                            Human Resources (HR)
+                          </option>
+                          <option value="IT / Technology">
+                            IT / Technology
+                          </option>
+                          <option value="Administration & Facilities">
+                            Administration & Facilities
+                          </option>
+                          <option value="Marketing & Brand Management">
+                            Marketing & Brand Management
+                          </option>
+                          <option value="Analytics & Business Intelligence">
+                            Analytics & Business Intelligence
+                          </option>
+                          <option value="Partnership & Alliances Acquisition">
+                            Partnership & Alliances Acquisition
+                          </option>
+                          <option value="Corportate Sales">
+                            Corportate Sales
+                          </option>
+                          <option value="OEM">OEM</option>
+                          <option value="Group Insurance">
+                            Group Insurance
+                          </option>
                           <option value="Other">Other</option>
-                          {/* Add other options here */}
                         </select>
                         {watchDepartment === "Other" && (
                           <Controller
@@ -987,35 +1136,20 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                     name="totalExperience"
                     control={control}
                     render={({ field }) => (
-                      <div className="flex gap-2">
-                        {/* Dropdown */}
-                        <select
-                          value={field.value || ""}
-                          onChange={(e) =>
-                            field.onChange(Number(e.target.value))
-                          }
-                          className="border rounded px-2 py-1"
-                        >
-                          <option value="">Select</option>
-                          {Array.from({ length: 31 }, (_, i) => i + 5).map(
-                            (num) => (
-                              <option key={num} value={num}>
-                                {num}
-                              </option>
-                            )
-                          )}
-                        </select>
-
-                        {/* Number input for fine-tuning */}
-                        <input
-                          {...field}
-                          type="number"
-                          step="0.1"
-                          min={5}
-                          max={35}
-                          className="border rounded px-2 py-1 w-24"
-                        />
-                      </div>
+                      <select
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        className="border rounded px-2 py-1 w-32"
+                      >
+                        <option value="">Select</option>
+                        {Array.from({ length: 31 }, (_, i) => i + 5).map(
+                          (num) => (
+                            <option key={num} value={num}>
+                              {num}
+                            </option>
+                          )
+                        )}
+                      </select>
                     )}
                   />
                 </div>

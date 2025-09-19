@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import UserForm from "./Form";
-import { Download, ChevronLeft, ChevronRight, Search, Trash2, Edit, Plus, FileSpreadsheet, RefreshCw, X } from "lucide-react";
+import {  ChevronLeft, ChevronRight, Search,  Edit, Plus, FileSpreadsheet, RefreshCw, X, Download } from "lucide-react";
 
 const AdminPage = () => {
     const [users, setUsers] = useState([]);
@@ -219,95 +219,39 @@ const AdminPage = () => {
         return pages;
     };
 
-    // Delete user with better error handling
-    const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this user?")) return;
+
+ 
+
+    // Fixed Excel download function for single user
+    const downloadExcel = async (userId, userName) => {
+        setDownloadLoading(prev => ({ ...prev, [`excel-${userId}`]: true }));
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URI}/forms/${id}`, {
-                method: "DELETE",
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/export-excel`, {
+                method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                 }
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to delete user: ${response.status}`);
+                throw new Error(`Export failed: ${response.status} ${response.statusText}`);
             }
 
-            const updatedUsers = users.filter((u) => u._id !== id);
-            setUsers(updatedUsers);
-            applyFilters(updatedUsers, filters);
-
-            // Show success message
-            alert("User deleted successfully!");
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${userName?.replace(/\s+/g, '_') || "user"}_details_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
         } catch (err) {
-            console.error("Delete error:", err);
-            alert("Failed to delete user: " + err.message);
-        }
-    };
-
-    // Fixed PDF download function
-    const downloadPDF = async (pdfFile, userName) => {
-        if (!pdfFile || !pdfFile.filename) {
-            alert("No PDF file available for this user");
-            return;
-        }
-
-        const userId = pdfFile.filename; // or however you identify the download
-        setDownloadLoading(prev => ({ ...prev, [userId]: true }));
-
-        try {
-            // Try different URL patterns based on your backend setup
-            const possibleUrls = [
-                `${import.meta.env.VITE_BACKEND_URI}/uploads/${pdfFile.filename}`,
-                `${import.meta.env.VITE_BACKEND_URI}/api/files/${pdfFile.filename}`,
-                `${import.meta.env.VITE_BACKEND_URI}/download/${pdfFile.filename}`,
-                `${import.meta.env.VITE_BACKEND_URI}/files/${pdfFile.filename}`
-            ];
-
-            let downloadSuccess = false;
-
-            for (const url of possibleUrls) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'application/pdf'
-                        }
-                    });
-
-                    if (response.ok) {
-                        const blob = await response.blob();
-
-                        // Check if the blob is actually a PDF
-                        if (blob.type === 'application/pdf' || blob.size > 0) {
-                            const downloadUrl = window.URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = downloadUrl;
-                            a.download = `${userName?.replace(/\s+/g, '_') || "user"}_resume.pdf`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            window.URL.revokeObjectURL(downloadUrl);
-                            downloadSuccess = true;
-                            break;
-                        }
-                    }
-                } catch {
-                    continue;
-                }
-            }
-
-            if (!downloadSuccess) {
-                throw new Error("PDF file not found on server or file is corrupted");
-            }
-
-        } catch (err) {
-            console.error("Download failed:", err);
-            alert(`Failed to download PDF: ${err.message}`);
+            console.error("Excel download failed:", err);
+            alert(`Failed to download Excel: ${err.message}`);
         } finally {
-            setDownloadLoading(prev => ({ ...prev, [userId]: false }));
+            setDownloadLoading(prev => ({ ...prev, [`excel-${userId}`]: false }));
         }
     };
 
@@ -594,17 +538,16 @@ const AdminPage = () => {
                                     <td className="px-3 py-2">
                                         <div className="flex items-center gap-1">
                                             <button
-                                                onClick={() => downloadPDF(user.pdfFile, `${user.firstName}_${user.lastName}`)}
-                                                disabled={downloadLoading[user.pdfFile?.filename] || !user.pdfFile}
-                                                className={`p-1.5 rounded transition-colors ${!user.pdfFile
-                                                    ? 'text-gray-400 cursor-not-allowed'
-                                                    : downloadLoading[user.pdfFile?.filename]
-                                                        ? 'text-blue-400 cursor-wait'
-                                                        : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
+                                                onClick={() => downloadExcel(user._id, `${user.firstName}_${user.lastName}`)}
+                                                disabled={downloadLoading[`excel-${user._id}`]}
+                                                className={`p-1.5 rounded transition-colors ${
+                                                    downloadLoading[`excel-${user._id}`]
+                                                        ? 'text-green-400 cursor-wait'
+                                                        : 'text-green-600 hover:text-green-800 hover:bg-green-50'
                                                     }`}
-                                                title={!user.pdfFile ? "No PDF available" : "Download PDF"}
+                                                title="Download Excel"
                                             >
-                                                <Download className={`h-3 w-3 ${downloadLoading[user.pdfFile?.filename] ? 'animate-spin' : ''}`} />
+                                                <Download className={`h-3 w-3 ${downloadLoading[`excel-${user._id}`] ? 'animate-spin' : ''}`} />
                                             </button>
                                             <button
                                                 onClick={() => handleEditClick(user)}
@@ -613,13 +556,7 @@ const AdminPage = () => {
                                             >
                                                 <Edit className="h-3 w-3" />
                                             </button>
-                                            <button
-                                                onClick={() => handleDelete(user._id)}
-                                                className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
-                                                title="Delete User"
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </button>
+                                          
                                         </div>
                                     </td>
                                 </tr>
