@@ -525,7 +525,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                         <Controller name="preferredState" control={control} render={({ field }) => <DebouncedAutoComplete {...field} placeholder="Select preferred state" apiType="states" className={inputClass} />} />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-10">City</label>
                         <Controller name="preferredCity" control={control} render={({ field }) => <DebouncedAutoComplete {...field} placeholder="Select preferred city" apiType="cities" className={inputClass} />} />
                       </div>
                    </div>
