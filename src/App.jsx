@@ -9,7 +9,7 @@ function App() {
     <BrowserRouter>
     <Routes>
       <Route path='/user' element={<UserForm/>}/>
-      <Route path='/sub-admin' element={<SubAdminPage/>}/>
+      <Route path='/subadmin' element={<SubAdminPage/>}/>
       <Route path='/admin' element={<AdminPage/>}/>
     </Routes>
     </BrowserRouter>

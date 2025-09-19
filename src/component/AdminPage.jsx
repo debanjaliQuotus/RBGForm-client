@@ -31,7 +31,7 @@ const AdminPage = () => {
         try {
             setLoading(true);
             setError("");
-            const response = await fetch("http://localhost:5000/forms?limit=1000");
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URI}/forms?limit=1000`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -39,6 +39,7 @@ const AdminPage = () => {
             const usersArray = data.data || [];
             setUsers(usersArray);
             setFilteredUsers(usersArray);
+            applyFilters(usersArray, filters);
         } catch (err) {
             console.error("Fetch error:", err);
             setError("Error fetching user data: " + err.message);
@@ -60,12 +61,12 @@ const AdminPage = () => {
             const searchTerm = currentFilters.search.toLowerCase();
             filtered = filtered.filter(
                 (user) =>
-                    user.firstName?.toLowerCase().includes(searchTerm) ||
-                    user.lastName?.toLowerCase().includes(searchTerm) ||
-                    user.mailId?.toLowerCase().includes(searchTerm) ||
-                    user.contactNo?.includes(searchTerm) ||
-                    user.currentEmployer?.toLowerCase().includes(searchTerm) ||
-                    user.designation?.toLowerCase().includes(searchTerm)
+                    (user.firstName && user.firstName.toLowerCase().includes(searchTerm)) ||
+                    (user.lastName && user.lastName.toLowerCase().includes(searchTerm)) ||
+                    (user.mailId && user.mailId.toLowerCase().includes(searchTerm)) ||
+                    (user.contactNo && user.contactNo.includes(searchTerm)) ||
+                    (user.currentEmployer && user.currentEmployer.toLowerCase().includes(searchTerm)) ||
+                    (user.designation && user.designation.toLowerCase().includes(searchTerm))
             );
         }
 
@@ -77,24 +78,24 @@ const AdminPage = () => {
         // Current/Preferred state
         if (currentFilters.currentState) {
             filtered = filtered.filter((user) =>
-                user.currentState?.toLowerCase().includes(currentFilters.currentState.toLowerCase())
+                user.currentState && user.currentState.toLowerCase().includes(currentFilters.currentState.toLowerCase())
             );
         }
         if (currentFilters.preferredState) {
             filtered = filtered.filter((user) =>
-                user.preferredState?.toLowerCase().includes(currentFilters.preferredState.toLowerCase())
+                user.preferredState && user.preferredState.toLowerCase().includes(currentFilters.preferredState.toLowerCase())
             );
         }
 
         // Designation/Department
         if (currentFilters.designation) {
             filtered = filtered.filter((user) =>
-                user.designation?.toLowerCase().includes(currentFilters.designation.toLowerCase())
+                user.designation && user.designation.toLowerCase().includes(currentFilters.designation.toLowerCase())
             );
         }
         if (currentFilters.department) {
             filtered = filtered.filter((user) =>
-                user.department?.toLowerCase().includes(currentFilters.department.toLowerCase())
+                user.department && user.department.toLowerCase().includes(currentFilters.department.toLowerCase())
             );
         }
 
@@ -172,7 +173,7 @@ const AdminPage = () => {
                 month: '2-digit',
                 year: 'numeric'
             });
-        } catch (error) {
+        } catch {
             return 'Invalid Date';
         }
     };
@@ -223,7 +224,7 @@ const AdminPage = () => {
         if (!window.confirm("Are you sure you want to delete this user?")) return;
 
         try {
-            const response = await fetch(`http://localhost:5000/forms/${id}`, {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URI}/forms/${id}`, {
                 method: "DELETE",
                 headers: {
                     'Content-Type': 'application/json',
@@ -259,14 +260,13 @@ const AdminPage = () => {
         try {
             // Try different URL patterns based on your backend setup
             const possibleUrls = [
-                `http://localhost:5000/uploads/${pdfFile.filename}`,
-                `http://localhost:5000/api/files/${pdfFile.filename}`,
-                `http://localhost:5000/download/${pdfFile.filename}`,
-                `http://localhost:5000/files/${pdfFile.filename}`
+                `${import.meta.env.VITE_BACKEND_URI}/uploads/${pdfFile.filename}`,
+                `${import.meta.env.VITE_BACKEND_URI}/api/files/${pdfFile.filename}`,
+                `${import.meta.env.VITE_BACKEND_URI}/download/${pdfFile.filename}`,
+                `${import.meta.env.VITE_BACKEND_URI}/files/${pdfFile.filename}`
             ];
 
             let downloadSuccess = false;
-            let lastError = null;
 
             for (const url of possibleUrls) {
                 try {
@@ -294,8 +294,7 @@ const AdminPage = () => {
                             break;
                         }
                     }
-                } catch (urlError) {
-                    lastError = urlError;
+                } catch {
                     continue;
                 }
             }
@@ -312,10 +311,13 @@ const AdminPage = () => {
         }
     };
 
+    // Remove unused variable 'error' warning by renaming to '_error'
+    // Remove unused variable 'lastError' warning by renaming to '_lastError'
+
     // Fixed Excel export
     const handleExportExcel = async () => {
         try {
-            const response = await fetch("http://localhost:5000/forms/download/export-excel", {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URI}/forms/download/export-excel`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
