@@ -518,7 +518,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
 
                  {/* Preferred Location */}
                  <div>
-                   <h3 className="text-lg font-semibold text-gray-700 mb-4 pt-2">Preferred Location</h3>
+                   <h3 className="text-lg font-semibold text-gray-700 mb-10 pt-2">Preferred Location</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">State</label>
