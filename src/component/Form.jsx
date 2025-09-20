@@ -145,8 +145,29 @@ const LOCATION_APIS = {
           },
         }
       );
-      const { data } = await res.json();
-      return data.map((city) => city.name);
+
+      if (!res.ok) {
+        throw new Error(`API responded with status: ${res.status}`);
+      }
+
+      const responseData = await res.json();
+
+      // Handle different possible response structures
+      const data = responseData.data || responseData.cities || responseData.results || [];
+
+      // Ensure data is an array before mapping
+      if (!Array.isArray(data)) {
+        console.warn("❌ Cities API returned non-array data:", data);
+        return [];
+      }
+
+      return data.map((city) => {
+        // Handle different city object structures
+        if (typeof city === 'string') {
+          return city;
+        }
+        return city.name || city.city || city.cityName || city.label || 'Unknown City';
+      }).filter(Boolean); // Remove any undefined/null values
     } catch (err) {
       console.error("❌ Cities API failed:", err.message);
       return [];
@@ -410,28 +431,69 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
         )}-${data.dobDay.padStart(2, "0")}`;
       }
 
+      // Debug: Log what data is being sent
+      console.log("Form data being sent:", data);
+
+      // Define required fields that should always be sent
+      const requiredFields = [
+        'firstName', 'lastName', 'contactNo', 'mailId', 'gender',
+        'currentState', 'currentCity', 'preferredState', 'preferredCity',
+        'currentEmployer', 'designation', 'department', 'ctcInLakhs', 'totalExperience'
+      ];
+
+      // Fields that should NOT be sent to backend (system fields)
+      const excludedFields = [
+        'dobDay', 'dobMonth', 'dobYear', '_id', 'id', 'dateOfUpload',
+        'createdAt', 'updatedAt', '__v', 'permanentDetails', 'comments'
+      ];
+
       Object.keys(data).forEach((key) => {
-        if (!["dobDay", "dobMonth", "dobYear"].includes(key)) {
-          if (data[key]) {
-            formData.append(key, data[key]);
+        if (!excludedFields.includes(key)) {
+          // Always send required fields, even if empty
+          if (requiredFields.includes(key) || (data[key] !== undefined && data[key] !== null && data[key] !== "")) {
+            formData.append(key, data[key] || "");
           }
         }
       });
 
+      // Debug: Log FormData contents
+      console.log("FormData contents:");
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+      }
+
       if (documentFile) formData.append("pdfFile", documentFile);
 
-      const url =
-        mode === "edit"
-          ? `${import.meta.env.VITE_BACKEND_URI}/forms/${
-              initialData.id || initialData._id
-            }`
-          : `${import.meta.env.VITE_BACKEND_URI}/forms`;
+      // Validate that we have a valid ID for edit mode
+      let url;
+      if (mode === "edit") {
+        const formId = initialData?.id || initialData?._id;
+        if (!formId) {
+          alert("Error: No valid form ID found for editing. Please try again.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        url = `${import.meta.env.VITE_BACKEND_URI}/forms/${formId}`;
+      } else {
+        url = `${import.meta.env.VITE_BACKEND_URI}/forms`;
+      }
+
       const method = mode === "edit" ? "PUT" : "POST";
       const response = await fetch(url, { method, body: formData });
 
       if (!response.ok) {
         const errorData = await response.json();
-        alert(errorData.message || "An error occurred.");
+        console.error("Backend error response:", errorData);
+
+        // Handle validation errors specifically
+        if (errorData.errors && Array.isArray(errorData.errors)) {
+          console.error("Detailed validation errors:", errorData.errors);
+          const validationErrors = errorData.errors.map(err => `${err.field}: ${err.message}`).join('\n');
+          alert(`Validation Error:\n${validationErrors}`);
+        } else {
+          alert(errorData.message || "An error occurred.");
+        }
         throw { response: { data: errorData } };
       }
 

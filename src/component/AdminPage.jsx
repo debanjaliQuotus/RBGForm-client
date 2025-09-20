@@ -219,9 +219,6 @@ const AdminPage = () => {
         return pages;
     };
 
-
- 
-
     // Fixed Excel download function for single user
     const downloadExcel = async (userId, userName) => {
         setDownloadLoading(prev => ({ ...prev, [`excel-${userId}`]: true }));
@@ -327,46 +324,49 @@ const AdminPage = () => {
     }
 
     return (
-        <div className="p-3 bg-gray-50 min-h-screen">
+        <div className="p-2 sm:p-3 lg:p-4 bg-gray-50 min-h-screen">
             <div className="bg-white rounded-lg shadow-md border border-gray-200">
                 {/* Header */}
-                <div className="px-4 py-3 border-b border-gray-200 bg-[#1B2951]">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <h1 className="text-lg font-semibold text-white">Admin Management Dashboard</h1>
-                            <p className="text-[#B99D54] text-sm mt-0.5">
+                <div className="px-3 sm:px-4 lg:px-6 py-3 border-b border-gray-200 bg-[#1B2951]">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-base sm:text-lg lg:text-xl font-semibold text-white truncate">Admin Management Dashboard</h1>
+                            <p className="text-[#B99D54] text-xs sm:text-sm mt-0.5">
                                 Total: {filteredUsers.length} users {filteredUsers.length !== users.length && `(filtered from ${users.length})`}
                             </p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
-                                className="px-3 py-1.5 bg-[#B99D54] text-white rounded text-sm hover:bg-[#B99D54]/90 transition-colors flex items-center gap-1"
+                                className="px-3 py-2 bg-[#B99D54] text-white rounded text-sm hover:bg-[#B99D54]/90 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
                             >
                                 <Plus className="h-3 w-3" />
-                                Add User
+                                <span className="hidden xs:inline">Add User</span>
+                                <span className="xs:hidden">Add</span>
                             </button>
                             <button
                                 onClick={handleExportExcel}
-                                className="px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors flex items-center gap-1"
+                                className="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
                             >
                                 <FileSpreadsheet className="h-3 w-3" />
-                                Export Excel
+                                <span className="hidden xs:inline">Export Excel</span>
+                                <span className="xs:hidden">Export</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
                 {/* Filters */}
-                <div className="p-3 border-b border-gray-200 bg-gray-50">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                <div className="p-2 sm:p-3 border-b border-gray-200 bg-gray-50">
+                    {/* Primary Filters - Always Visible */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                         {/* Search */}
                         <div className="relative">
-                            <Search className="absolute left-2 top-3 h-3 w-3 text-gray-500" />
+                            <Search className="absolute left-2 top-2.5 sm:top-3 h-3 w-3 text-gray-500" />
                             <input
                                 type="text"
                                 placeholder="Search name, email, phone..."
-                                className="pl-7 pr-2 py-1.5 border border-gray-300 rounded text-sm w-full focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                                className="pl-7 pr-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm w-full focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                                 value={filters.search}
                                 onChange={(e) => handleFilterChange('search', e.target.value)}
                             />
@@ -374,7 +374,7 @@ const AdminPage = () => {
 
                         {/* Gender */}
                         <select
-                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                             value={filters.gender}
                             onChange={(e) => handleFilterChange('gender', e.target.value)}
                         >
@@ -384,45 +384,9 @@ const AdminPage = () => {
                             <option value="Other">Other</option>
                         </select>
 
-                        {/* Current State */}
-                        <input
-                            type="text"
-                            placeholder="Current state"
-                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
-                            value={filters.currentState}
-                            onChange={(e) => handleFilterChange('currentState', e.target.value)}
-                        />
-
-                        {/* Preferred State */}
-                        <input
-                            type="text"
-                            placeholder="Preferred state"
-                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
-                            value={filters.preferredState}
-                            onChange={(e) => handleFilterChange('preferredState', e.target.value)}
-                        />
-
-                        {/* Designation */}
-                        <input
-                            type="text"
-                            placeholder="Designation"
-                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
-                            value={filters.designation}
-                            onChange={(e) => handleFilterChange('designation', e.target.value)}
-                        />
-
-                        {/* Department */}
-                        <input
-                            type="text"
-                            placeholder="Department"
-                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
-                            value={filters.department}
-                            onChange={(e) => handleFilterChange('department', e.target.value)}
-                        />
-
                         {/* Experience Range */}
                         <select
-                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                             value={filters.experienceRange}
                             onChange={(e) => handleFilterChange('experienceRange', e.target.value)}
                         >
@@ -435,7 +399,7 @@ const AdminPage = () => {
 
                         {/* CTC Range */}
                         <select
-                            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                             value={filters.ctcRange}
                             onChange={(e) => handleFilterChange('ctcRange', e.target.value)}
                         >
@@ -447,16 +411,56 @@ const AdminPage = () => {
                         </select>
                     </div>
 
-                    <div className="mt-2 flex justify-between items-center">
+                    {/* Secondary Filters - Collapsible on Mobile */}
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                        {/* Current State */}
+                        <input
+                            type="text"
+                            placeholder="Current state"
+                            className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            value={filters.currentState}
+                            onChange={(e) => handleFilterChange('currentState', e.target.value)}
+                        />
+
+                        {/* Preferred State */}
+                        <input
+                            type="text"
+                            placeholder="Preferred state"
+                            className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            value={filters.preferredState}
+                            onChange={(e) => handleFilterChange('preferredState', e.target.value)}
+                        />
+
+                        {/* Designation */}
+                        <input
+                            type="text"
+                            placeholder="Designation"
+                            className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            value={filters.designation}
+                            onChange={(e) => handleFilterChange('designation', e.target.value)}
+                        />
+
+                        {/* Department */}
+                        <input
+                            type="text"
+                            placeholder="Department"
+                            className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                            value={filters.department}
+                            onChange={(e) => handleFilterChange('department', e.target.value)}
+                        />
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="mt-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                         <button
                             onClick={clearFilters}
-                            className="px-3 py-1.5 text-[#1B2951] hover:text-[#B99D54] hover:bg-gray-100 rounded text-sm transition-colors"
+                            className="px-3 py-2 sm:py-1.5 text-[#1B2951] hover:text-[#B99D54] hover:bg-gray-100 rounded text-sm transition-colors w-full sm:w-auto"
                         >
                             Clear Filters
                         </button>
                         <button
                             onClick={fetchUsers}
-                            className="px-3 py-1.5 bg-[#1B2951] text-white rounded text-sm hover:bg-[#1B2951]/90 transition-colors flex items-center gap-1"
+                            className="px-3 py-2 sm:py-1.5 bg-[#1B2951] text-white rounded text-sm hover:bg-[#1B2951]/90 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
                         >
                             <RefreshCw className="h-3 w-3" />
                             Refresh Data
