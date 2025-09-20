@@ -37,7 +37,7 @@ const SubAdminPage = () => {
         try {
             setLoading(true);
             // Fetch all users by requesting a large limit
-            const response = await fetch('http://localhost:5000/forms?limit=1000');
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URI}/forms?limit=1000`);
 
             if (!response.ok) {
                 throw new Error('Failed to fetch users');
