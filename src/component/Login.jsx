@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const {
@@ -11,7 +12,7 @@ const Login = () => {
     formState: { errors },
   } = useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
+  const { login } = useAuth();
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -20,16 +21,32 @@ const Login = () => {
         `${import.meta.env.VITE_BACKEND_URI}/users/login`,
         data
       );
-      const role = response.data.data?.role;
-      toast.success("Login successful!");
-      const roleLower = role?.toLowerCase();
-      if (roleLower === "admin") {
-        navigate("/admin");
-      } else if (roleLower === "sub-admin" || roleLower === "subadmin") {
-        navigate("/sub-admin");
+
+      console.log('Login: API response:', response.data);
+
+      // Handle the actual API response structure
+      let user, token;
+      if (response.data.data) {
+        // The user data is directly in response.data.data
+        user = response.data.data;
+        // Token might be in response.data.token or we can use a default
+        token = response.data.token || 'default-token';
       } else {
-        navigate("/user");
+        // Fallback if no data wrapper
+        user = response.data;
+        token = response.data.token || 'default-token';
       }
+
+      console.log('Login: Extracted user:', user, 'token:', token);
+
+      // Use AuthContext login method
+      const result = await login(user, token);
+      console.log('Login: Login result:', result);
+
+      toast.success("Login successful!");
+
+      // Navigation will be handled by the AuthContext or ProtectedRoute
+      // based on user role
     } catch (error) {
       toast.error(error.response?.data?.message || "Login failed");
     } finally {
@@ -55,7 +72,7 @@ const Login = () => {
               name="email"
               type="email"
               autoComplete="email"
-              {...register("email", { 
+              {...register("email", {
                 required: "Email is required",
                 pattern: {
                   value: /^\S+@\S+$/i,
@@ -102,8 +119,8 @@ const Login = () => {
           <div className="text-center">
             <p className="text-sm text-gray-600">
               Do not have an account?{' '}
-              <Link 
-                to="/register" 
+              <Link
+                to="/register"
                 className="font-medium text-[#1a2a52] hover:text-[#bfa75a] transition-colors duration-200"
               >
                 Register now

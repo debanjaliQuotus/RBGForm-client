@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import UserForm from "./Form";
-import {  ChevronLeft, ChevronRight, Search,  Edit, Plus, FileSpreadsheet, RefreshCw, X, Download } from "lucide-react";
+import {  ChevronLeft, ChevronRight, Search,  Edit, Plus, FileSpreadsheet, RefreshCw, X, Download, LogOut } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 const AdminPage = () => {
+    const { logout } = useAuth();
     const [users, setUsers] = useState([]);
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -25,6 +27,11 @@ const AdminPage = () => {
         experienceRange: "",
         ctcRange: "",
     });
+
+    // Handle logout
+    const handleLogout = () => {
+        logout();
+    };
 
     // Fetch users
     const fetchUsers = async () => {
@@ -351,6 +358,14 @@ const AdminPage = () => {
                                 <FileSpreadsheet className="h-3 w-3" />
                                 <span className="hidden xs:inline">Export Excel</span>
                                 <span className="xs:hidden">Export</span>
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
+                            >
+                                <LogOut className="h-3 w-3" />
+                                <span className="hidden xs:inline">Logout</span>
+                                <span className="xs:hidden">Logout</span>
                             </button>
                         </div>
                     </div>

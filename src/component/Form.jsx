@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { useAuth } from "../context/AuthContext";
+import { LogOut } from "lucide-react";
 
 const debounce = (func, delay) => {
   let timer;
@@ -153,7 +155,8 @@ const LOCATION_APIS = {
       const responseData = await res.json();
 
       // Handle different possible response structures
-      const data = responseData.data || responseData.cities || responseData.results || [];
+      const data =
+        responseData.data || responseData.cities || responseData.results || [];
 
       // Ensure data is an array before mapping
       if (!Array.isArray(data)) {
@@ -161,13 +164,21 @@ const LOCATION_APIS = {
         return [];
       }
 
-      return data.map((city) => {
-        // Handle different city object structures
-        if (typeof city === 'string') {
-          return city;
-        }
-        return city.name || city.city || city.cityName || city.label || 'Unknown City';
-      }).filter(Boolean); // Remove any undefined/null values
+      return data
+        .map((city) => {
+          // Handle different city object structures
+          if (typeof city === "string") {
+            return city;
+          }
+          return (
+            city.name ||
+            city.city ||
+            city.cityName ||
+            city.label ||
+            "Unknown City"
+          );
+        })
+        .filter(Boolean); // Remove any undefined/null values
     } catch (err) {
       console.error("❌ Cities API failed:", err.message);
       return [];
@@ -207,7 +218,8 @@ const DebouncedAutoComplete = ({
 
   const fetchOptions = useCallback(
     debounce(async (searchValue) => {
-      if (searchValue && searchValue.length >= 1) { // Changed to 1 for better UX
+      if (searchValue && searchValue.length >= 1) {
+        // Changed to 1 for better UX
         setIsLoading(true);
         try {
           const results = await LOCATION_APIS[apiType](searchValue);
@@ -269,8 +281,8 @@ const DebouncedAutoComplete = ({
         placeholder={placeholder}
         className={className}
         onFocus={() => {
-            // Re-check options on focus if input has value
-            if(inputValue) fetchOptions(inputValue);
+          // Re-check options on focus if input has value
+          if (inputValue) fetchOptions(inputValue);
         }}
         autoComplete="off"
       />
@@ -302,10 +314,16 @@ const DebouncedAutoComplete = ({
   );
 };
 const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
+  const { logout, user } = useAuth();
   const [documentFile, setdocumentFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [comments, setComments] = useState([""]);
+
+  // Handle logout
+  const handleLogout = () => {
+    logout();
+  };
 
   const addComment = () => setComments([...comments, ""]);
   const updateComment = (index, value) =>
@@ -343,8 +361,11 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
     },
   });
 
+  const contactNoValue = watch("contactNo");
+  const alternateContactNoValue = watch("alternateContactNo");
+  const panNoValue = watch("panNo");
+
   const watchDepartment = watch("department");
-  const mailIdValue = watch("mailId"); // Watch the primary email field
   const [ctcDisplay, setCtcDisplay] = useState("");
   const ctcValue = watch("ctcInLakhs");
   useEffect(() => {
@@ -359,12 +380,12 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
     }
   }, [mode, setValue]);
 
-  // Effect to sync the primary email to the 'uploadedBy' field
+  // Effect to set the logged-in user's email in the 'uploadedBy' field
   useEffect(() => {
-    if (mode === "add") {
-      setValue("uploadedBy", mailIdValue || "");
+    if (mode === "add" && user && user.email) {
+      setValue("uploadedBy", user.email);
     }
-  }, [mailIdValue, mode, setValue]);
+  }, [mode, user, setValue]);
 
   // Fill form if editing
   useEffect(() => {
@@ -436,21 +457,44 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
 
       // Define required fields that should always be sent
       const requiredFields = [
-        'firstName', 'lastName', 'contactNo', 'mailId', 'gender',
-        'currentState', 'currentCity', 'preferredState', 'preferredCity',
-        'currentEmployer', 'designation', 'department', 'ctcInLakhs', 'totalExperience'
+        "firstName",
+        "lastName",
+        "contactNo",
+        "mailId",
+        "gender",
+        "currentState",
+        "currentCity",
+        "preferredState",
+        "preferredCity",
+        "currentEmployer",
+        "designation",
+        "department",
+        "ctcInLakhs",
+        "totalExperience",
       ];
 
       // Fields that should NOT be sent to backend (system fields)
       const excludedFields = [
-        'dobDay', 'dobMonth', 'dobYear', '_id', 'id', 'dateOfUpload',
-        'createdAt', 'updatedAt', '__v', 'permanentDetails', 'comments'
+        "dobDay",
+        "dobMonth",
+        "dobYear",
+        "_id",
+        "id",
+        "dateOfUpload",
+        "createdAt",
+        "updatedAt",
+        "__v",
+        "permanentDetails",
+        "comments",
       ];
 
       Object.keys(data).forEach((key) => {
         if (!excludedFields.includes(key)) {
           // Always send required fields, even if empty
-          if (requiredFields.includes(key) || (data[key] !== undefined && data[key] !== null && data[key] !== "")) {
+          if (
+            requiredFields.includes(key) ||
+            (data[key] !== undefined && data[key] !== null && data[key] !== "")
+          ) {
             formData.append(key, data[key] || "");
           }
         }
@@ -489,7 +533,9 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
         // Handle validation errors specifically
         if (errorData.errors && Array.isArray(errorData.errors)) {
           console.error("Detailed validation errors:", errorData.errors);
-          const validationErrors = errorData.errors.map(err => `${err.field}: ${err.message}`).join('\n');
+          const validationErrors = errorData.errors
+            .map((err) => `${err.field}: ${err.message}`)
+            .join("\n");
           alert(`Validation Error:\n${validationErrors}`);
         } else {
           alert(errorData.message || "An error occurred.");
@@ -553,6 +599,22 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       </p>
     ) : null;
 
+  const renderInputWarning = (fieldName, value, requiredLength) => {
+    // Don't show a warning if there's already a final validation error
+    if (errors[fieldName]) {
+      return null;
+    }
+    // Show warning if the field has text but is not yet the required length
+    if (value && value.length > 0 && value.length < requiredLength) {
+      return (
+        <p className="text-yellow-600 text-xs mt-1">
+          Must be {requiredLength} characters long.
+        </p>
+      );
+    }
+    return null;
+  };
+
   const inputClass =
     "w-full px-4 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-white text-gray-700 placeholder-gray-400";
   const selectClass =
@@ -566,11 +628,21 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       <div className="max-w-6xl mx-auto">
         <div className="bg-white shadow-sm border border-gray-200 mb-2">
           <div className="px-6 py-2" style={{ backgroundColor: "#1B2951" }}>
-            <h1 className="text-2xl font-bold text-white mb-2">
-              {mode === "edit"
-                ? "Edit User Information"
-                : "User Information Form"}
-            </h1>
+            <div className="flex justify-between items-center">
+              <h1 className="text-2xl font-bold text-white mb-2">
+                {mode === "edit"
+                  ? "Edit User Information"
+                  : "User Information Form"}
+              </h1>
+              <button
+                onClick={handleLogout}
+                className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center gap-1"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
+            </div>
           </div>
         </div>
 
@@ -708,9 +780,11 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                   {renderError("fatherName")}
                 </div>
                 <div>
+                                   {" "}
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     PAN Number
                   </label>
+                                   {" "}
                   <Controller
                     name="panNo"
                     control={control}
@@ -718,13 +792,21 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                       <input
                         {...field}
                         type="text"
+                        maxLength="10"
                         placeholder="ABCDE1234F"
                         className={`${inputClass} uppercase`}
+                        onChange={(e) => {
+                          const value = e.target.value.toUpperCase();
+                          field.onChange(value);
+                        }}
                       />
                     )}
                   />
-                  {renderError("panNo")}
+                                    {renderError("panNo")}
+                  {/* ✨ NEW: Live warning for PAN */}
+                  {renderInputWarning("panNo", panNoValue, 10)}             {" "}
                 </div>
+                             {" "}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -832,10 +914,13 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
             <div className="p-8 space-y-4">
               {/* Contact Numbers */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                               {" "}
                 <div>
+                                   {" "}
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Primary Contact
                   </label>
+                                   {" "}
                   <Controller
                     name="contactNo"
                     control={control}
@@ -843,17 +928,28 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                       <input
                         {...field}
                         type="text"
-                        placeholder="Enter contact number"
+                        maxLength="10"
+                        placeholder="Enter 10-digit contact number"
                         className={inputClass}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "");
+                          field.onChange(value);
+                        }}
                       />
                     )}
                   />
-                  {renderError("contactNo")}
+                                    {renderError("contactNo")}
+                  {/* ✨ NEW: Live warning for Contact */}
+                  {renderInputWarning("contactNo", contactNoValue, 10)}         
+                       {" "}
                 </div>
+                               {" "}
                 <div>
+                                   {" "}
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Alternate Contact
                   </label>
+                                   {" "}
                   <Controller
                     name="alternateContactNo"
                     control={control}
@@ -861,13 +957,26 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                       <input
                         {...field}
                         type="text"
-                        placeholder="Enter alternate contact"
+                        maxLength="10"
+                        placeholder="Enter 10-digit alternate contact"
                         className={inputClass}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "");
+                          field.onChange(value);
+                        }}
                       />
                     )}
                   />
-                  {renderError("alternateContactNo")}
+                                    {renderError("alternateContactNo")}
+                  {/* ✨ NEW: Live warning for Alternate Contact */}
+                  {renderInputWarning(
+                    "alternateContactNo",
+                    alternateContactNoValue,
+                    10
+                  )}
+                                 {" "}
                 </div>
+                             {" "}
               </div>
 
               {/* Email Addresses */}
@@ -1019,23 +1128,23 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
             <div className="p-8 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Current Employer
-                        </label>
-                        {/* --- START: Updated Field --- */}
-                        <Controller
-                            name="currentEmployer"
-                            control={control}
-                            render={({ field }) => (
-                                <DebouncedAutoComplete
-                                    {...field}
-                                    placeholder="Start typing an employer name..."
-                                    apiType="companies"
-                                    className={inputClass}
-                                />
-                            )}
-                        />
-                    </div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Current Employer
+                  </label>
+                  {/* --- START: Updated Field --- */}
+                  <Controller
+                    name="currentEmployer"
+                    control={control}
+                    render={({ field }) => (
+                      <DebouncedAutoComplete
+                        {...field}
+                        placeholder="Start typing an employer name..."
+                        apiType="companies"
+                        className={inputClass}
+                      />
+                    )}
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Designation

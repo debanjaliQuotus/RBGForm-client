@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Download, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, Download, Trash2, Eye, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const SubAdminPage = () => {
+    const { logout } = useAuth();
     const [users, setUsers] = useState([]);
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -20,6 +22,11 @@ const SubAdminPage = () => {
         experienceRange: '',
         ctcRange: ''
     });
+
+    // Handle logout
+    const handleLogout = () => {
+        logout();
+    };
 
     useEffect(() => {
         fetchUsers();
@@ -342,12 +349,21 @@ const SubAdminPage = () => {
                         >
                             Clear Filters
                         </button>
-                        <button
-                            onClick={fetchUsers}
-                            className="px-3 py-1.5 bg-[#1B2951] text-white rounded text-sm hover:bg-[#1B2951]/90 transition-colors"
-                        >
-                            Refresh Data
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={fetchUsers}
+                                className="px-3 py-1.5 bg-[#1B2951] text-white rounded text-sm hover:bg-[#1B2951]/90 transition-colors"
+                            >
+                                Refresh Data
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center gap-1"
+                            >
+                                <LogOut className="h-3 w-3" />
+                                Logout
+                            </button>
+                        </div>
                     </div>
                 </div>
 
