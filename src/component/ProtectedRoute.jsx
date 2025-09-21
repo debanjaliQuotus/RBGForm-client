@@ -29,6 +29,8 @@ const ProtectedRoute = ({ children, requiredRoles = [] }) => {
       return <Navigate to="/admin" replace />;
     } else if (userRole === 'sub-admin' || userRole === 'subadmin') {
       return <Navigate to="/sub-admin" replace />;
+    } else if (userRole === 'sub-user' || userRole === 'subuser') {
+      return <Navigate to="/sub-user" replace />;
     } else {
       return <Navigate to="/user" replace />;
     }

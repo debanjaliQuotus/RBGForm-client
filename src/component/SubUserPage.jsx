@@ -1,20 +1,14 @@
 import React, { useState, useEffect } from "react";
 import {
   Search,
-  Filter,
   Download,
-  Trash2,
-  Eye,
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Plus,
-  X,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import UserForm from "./Form";
 
-const SubAdminPage = () => {
+const SubUserPage = () => {
   const { logout } = useAuth();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -22,8 +16,6 @@ const SubAdminPage = () => {
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -209,10 +201,36 @@ const SubAdminPage = () => {
     setCurrentPage(1);
   };
 
-  // Handle form success (for add user)
-  const handleFormSuccess = () => {
-    setIsAddModalOpen(false);
-    fetchUsers(); // Refresh the data
+  // Download resume function
+  const handleDownloadResume = async (userId, fileName) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/download-pdf`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || `resume_${userId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download resume: ' + error.message);
+    }
   };
 
   // Format date for display
@@ -303,7 +321,7 @@ const SubAdminPage = () => {
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div className="min-w-0 flex-1">
               <h1 className="text-lg font-semibold text-white">
-                Sub-Admin Dashboard
+                Sub-User Dashboard
               </h1>
               <p className="text-[#B99D54] text-sm mt-0.5">
                 Total: {filteredUsers.length} users{" "}
@@ -312,14 +330,6 @@ const SubAdminPage = () => {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="px-3 py-2 bg-[#B99D54] text-white rounded text-sm hover:bg-[#B99D54]/90 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
-              >
-                <Plus className="h-3 w-3" />
-                <span className="hidden xs:inline">Add User</span>
-                <span className="xs:hidden">Add</span>
-              </button>
               <button
                 onClick={handleLogout}
                 className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
@@ -331,6 +341,7 @@ const SubAdminPage = () => {
             </div>
           </div>
         </div>
+
         {/* Filters */}
         <div className="p-3 border-b border-gray-200 bg-gray-50">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -480,6 +491,9 @@ const SubAdminPage = () => {
                 <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Comments
                 </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -492,7 +506,7 @@ const SubAdminPage = () => {
                 >
                   <td className="px-3 py-2">
                     <div className="text-sm text-[#1B2951] font-medium">
-                      Uploaded By: {user.uploadedBy}{" "}
+                      Uploaded By: {user.uploadedBy}&nbsp;
                     </div>
                     <div className="text-sm text-[#1B2951]">
                       Date of Upload: {formatDate(user.dateOfUpload)}
@@ -578,6 +592,17 @@ const SubAdminPage = () => {
                       </ul>
                     </span>
                   </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleDownloadResume(user._id || user.id, `${user.firstName}_${user.lastName}_resume.pdf`)}
+                        className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                        title="Download Resume"
+                      >
+                        <Download className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -654,29 +679,9 @@ const SubAdminPage = () => {
             </div>
           </div>
         )}
-
-        {/* Add User Modal */}
-        {isAddModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[95vh] overflow-y-auto p-4 relative">
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-5 w-5" />
-              </button>
-
-              <UserForm
-                mode="add"
-                onClose={() => setIsAddModalOpen(false)}
-                onSuccess={handleFormSuccess}
-              />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
-export default SubAdminPage;
+export default SubUserPage;

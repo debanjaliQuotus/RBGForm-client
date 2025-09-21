@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
 import { LogOut } from "lucide-react";
+import { renderAsync } from "docx-preview";
 
 const debounce = (func, delay) => {
   let timer;
@@ -316,6 +317,8 @@ const DebouncedAutoComplete = ({
 const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   const { logout, user } = useAuth();
   const [documentFile, setdocumentFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  const docxContainerRef = useRef(null);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [comments, setComments] = useState([""]);
@@ -411,8 +414,45 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   }, [initialData, reset]);
 
   const handleFileChange = (e) => {
-    setdocumentFile(e.target.files[0]);
+    const file = e.target.files[0];
+
+    // Clean up the previous preview URL if a new file is selected
+    if (filePreview) {
+      URL.revokeObjectURL(filePreview);
+    }
+
+    if (file) {
+      setdocumentFile(file);
+      // Create a new preview URL for the selected file
+      setFilePreview(URL.createObjectURL(file));
+    } else {
+      // Reset if no file is chosen
+      setdocumentFile(null);
+      setFilePreview(null);
+    }
   };
+
+  useEffect(() => {
+    // Revoke the object URL to avoid memory leaks when the component unmounts
+    return () => {
+      if (filePreview) {
+        URL.revokeObjectURL(filePreview);
+      }
+    };
+  }, [filePreview]);
+
+  useEffect(() => {
+    if (
+      documentFile &&
+      docxContainerRef.current &&
+      documentFile.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      renderAsync(documentFile, docxContainerRef.current)
+        .then(() => console.log("DOCX preview rendered."))
+        .catch((error) => console.error("Error rendering DOCX:", error));
+    }
+  }, [documentFile]);
 
   const onSubmit = async (data) => {
     const newErrors = {};
@@ -1313,13 +1353,11 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                         className="border rounded px-2 py-1 w-32"
                       >
                         <option value="">Select</option>
-                        {Array.from({ length: 36 }, (_, i) => i).map(
-                          (num) => (
-                            <option key={num} value={num}>
-                              {num}
-                            </option>
-                          )
-                        )}
+                        {Array.from({ length: 36 }, (_, i) => i).map((num) => (
+                          <option key={num} value={num}>
+                            {num}
+                          </option>
+                        ))}
                       </select>
                     )}
                   />
@@ -1395,24 +1433,11 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                     clipRule="evenodd"
                   />
                 </svg>
-                Upload Document
+                Upload Resume
               </h2>
             </div>
             <div className="p-2">
               <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center hover:border-gray-400 transition-colors duration-200">
-                <svg
-                  className="w-8 h-8 text-gray-400 mx-auto mb-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                  />
-                </svg>
                 <input
                   type="file"
                   accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -1420,21 +1445,93 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                   className="hidden"
                   id="file-upload"
                 />
+
+                {/* Show preview if a new file is selected */}
+                {filePreview && documentFile ? (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                      File Preview:
+                    </h4>
+                    {documentFile.type.startsWith("image/") ? (
+                      <img
+                        src={filePreview}
+                        alt="Preview"
+                        className="max-w-full h-auto max-h-48 mx-auto rounded-md shadow-md"
+                      />
+                    ) : documentFile.type === "application/pdf" ? (
+                      <embed
+                        src={filePreview}
+                        type="application/pdf"
+                        className="w-full h-64 border rounded"
+                      />
+                    ) : documentFile.type ===
+                      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ? (
+                      // ✨ This div is the container for the DOCX preview
+                      <div
+                        ref={docxContainerRef}
+                        className="w-full h-64 border rounded p-2 overflow-y-auto bg-white text-left"
+                      >
+                        <p className="text-sm text-gray-500">
+                          Rendering preview...
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-sm text-gray-600 bg-gray-100 p-3 rounded">
+                        <p>Preview not available for this file type.</p>
+                        <p className="font-semibold mt-1">
+                          Selected: {documentFile.name}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : initialData?.pdfFile?.path ? (
+                  // Show current file in edit mode
+                  <div className="mb-4 text-sm text-gray-600">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-1">
+                      Current File:
+                    </h4>
+                    <a
+                      href={`${import.meta.env.VITE_BACKEND_URI}/${
+                        initialData.pdfFile.path
+                      }`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {initialData.pdfFile.originalName || "View Current File"}
+                    </a>
+                  </div>
+                ) : (
+                  // Default upload prompt
+                  <>
+                    <svg
+                      className="w-8 h-8 text-gray-400 mx-auto mb-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                      />
+                    </svg>
+                    <p className="text-xs text-gray-500 mt-1 mb-2">
+                      PDF or DOCX only, max 10MB
+                    </p>
+                  </>
+                )}
+
                 <label
                   htmlFor="file-upload"
                   className="cursor-pointer inline-flex items-center px-4 py-2 text-xs text-white font-medium rounded-md transition-all duration-200"
                   style={{ backgroundColor: "#1B2951" }}
                 >
-                  Choose File
+                  {documentFile || initialData?.pdfFile
+                    ? "Change File"
+                    : "Choose File"}
                 </label>
-                {documentFile && (
-                  <p className="mt-2 text-xs text-gray-600">
-                    Selected: {documentFile.name}
-                  </p>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  PDF or DOCX only, max 10MB
-                </p>
               </div>
             </div>
           </div>

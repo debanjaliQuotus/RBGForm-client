@@ -91,6 +91,8 @@ const AuthProvider = ({ children }) => {
         navigate('/admin');
       } else if (roleLower === 'sub-admin' || roleLower === 'subadmin') {
         navigate('/sub-admin');
+      } else if (roleLower === 'sub-user' || roleLower === 'subuser' || roleLower === 'sub_user') {
+        navigate('/sub-user');
       } else {
         navigate('/user');
       }

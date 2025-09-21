@@ -13,6 +13,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.13",
     "axios": "^1.12.2",
+    "docx-preview": "^0.3.6",
     "lodash": "^4.17.21",
     "lucide-react": "^0.544.0",
     "react": "^18.3.1",
