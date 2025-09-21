@@ -536,7 +536,7 @@ const handleExportExcel = async () => {
               onClick={clearFilters}
               className="px-3 py-2 sm:py-1.5 bg-[#1B2951] text-white rounded text-sm hover:bg-[#1B2951]/90 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
             >
-              <RefreshCw className="h-3 w-3" />t
+              <RefreshCw className="h-3 w-3" />
               
               Refresh Data
             </button>
