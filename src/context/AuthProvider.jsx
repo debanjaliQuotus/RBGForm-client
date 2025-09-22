@@ -85,16 +85,20 @@ const AuthProvider = ({ children }) => {
   // Handle role-based routing after login
   useEffect(() => {
     if (state.isAuthenticated && state.role && !state.loading) {
-      console.log('AuthProvider: Navigating based on role:', state.role);
-      const roleLower = state.role.toLowerCase();
-      if (roleLower === 'admin') {
-        navigate('/admin');
-      } else if (roleLower === 'sub-admin' || roleLower === 'subadmin') {
-        navigate('/sub-admin');
-      } else if (roleLower === 'sub-user' || roleLower === 'subuser' || roleLower === 'sub_user') {
-        navigate('/sub-user');
-      } else {
-        navigate('/user');
+      // Only redirect if we're on the root path (login page)
+      // Don't redirect if user is already on a valid route
+      if (window.location.pathname === '/') {
+        console.log('AuthProvider: Navigating based on role:', state.role);
+        const roleLower = state.role.toLowerCase();
+        if (roleLower === 'admin') {
+          navigate('/admin');
+        } else if (roleLower === 'sub-admin' || roleLower === 'subadmin') {
+          navigate('/sub-admin');
+        } else if (roleLower === 'sub-user' || roleLower === 'subuser' || roleLower === 'sub_user') {
+          navigate('/sub-user');
+        } else {
+          navigate('/user');
+        }
       }
     }
   }, [state.isAuthenticated, state.role, state.loading, navigate]);

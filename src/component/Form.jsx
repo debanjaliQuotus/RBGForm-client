@@ -403,13 +403,12 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
         }
       }
       reset(updatedData);
-      // Set comments from existing data
-      const existingComments = [
-        initialData.comment1,
-        initialData.comment2,
-        initialData.comment3,
-      ].filter((c) => c && c.trim());
-      setComments(existingComments.length > 0 ? existingComments : [""]);
+      // Set comments from existing data (do NOT use comment1, comment2, comment3)
+      if (Array.isArray(initialData.comments) && initialData.comments.length > 0) {
+        setComments(initialData.comments.map(c => c.text || ""));
+      } else {
+        setComments([""]);
+      }
     }
   }, [initialData, reset]);
 
@@ -584,10 +583,10 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       }
 
       const responseData = await response.json();
-      const formId = responseData.id || responseData._id;
+      const formId = responseData.data?.id || responseData.data?._id; // <-- Fix here
 
       // Submit comments for new forms
-      if (mode === "add") {
+      if (mode === "add" && formId) {
         for (const comment of comments) {
           if (comment.trim()) {
             await fetch(
@@ -595,7 +594,10 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ comment }),
+                body: JSON.stringify({
+                  text: comment,
+                  addedBy: user?.email || "unknown",
+                }),
               }
             );
           }
@@ -1342,20 +1344,20 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Total Experience (Years)
                   </label>
-
                   <Controller
                     name="totalExperience"
                     control={control}
                     render={({ field }) => (
                       <select
                         value={field.value || ""}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        onChange={(e) => field.onChange(e.target.value)}
                         className="border rounded px-2 py-1 w-32"
                       >
                         <option value="">Select</option>
-                        {Array.from({ length: 36 }, (_, i) => i).map((num) => (
-                          <option key={num} value={num}>
-                            {num}
+                        {/* Show ranges like 0-1, 1-2, ..., 34-35, 35+ */}
+                        {Array.from({ length: 36 }, (_, i) => (
+                          <option key={i} value={i === 35 ? "35+" : `${i}-${i + 1}`}>
+                            {i === 35 ? "35+ years" : `${i}-${i + 1} years`}
                           </option>
                         ))}
                       </select>

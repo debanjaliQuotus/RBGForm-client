@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import UserForm from "./Form";
 import {
   ChevronLeft,
@@ -10,11 +11,16 @@ import {
   RefreshCw,
   X,
   LogOut,
+  Settings,
+  MessageSquare,
+  Eye,
+  Download,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const AdminPage = () => {
   const { logout } = useAuth();
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +31,10 @@ const AdminPage = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-
+  const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
+  const [userComments, setUserComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsUserInfo, setCommentsUserInfo] = useState({});
 
   const [filters, setFilters] = useState({
     search: "",
@@ -37,6 +46,7 @@ const AdminPage = () => {
     experienceRange: "",
     ctcRange: "",
     companyName: "",
+    ageRange: "", // <-- Add age filter
   });
 
   // Handle logout
@@ -44,48 +54,102 @@ const AdminPage = () => {
     logout();
   };
 
-  // Fetch users
- const fetchUsers = async () => {
-  try {
-    setLoading(true);
-    setError("");
-    const response = await fetch(
-      `${import.meta.env.VITE_BACKEND_URI}/forms?limit=1000`
-    );
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+  // Handle navigation to admin panel
+  const handleNavigateToPanel = () => {
+    console.log("Navigating to admin panel...");
+    try {
+      navigate("/admin/panel");
+      console.log("Navigation successful");
+    } catch (error) {
+      console.error("Navigation error:", error);
     }
-    const data = await response.json();
-    const usersArray = data.data || [];
+  };
 
-    // ✅ Set both at once
-    setUsers(usersArray);
-    setFilteredUsers(usersArray);
+  // Fetch users
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URI}/forms?limit=1000`
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      const usersArray = data.data || [];
 
-    // ✅ Reset filters explicitly
-    setFilters({
-      search: "",
-      gender: "",
-      currentState: "",
-      preferredState: "",
-      designation: "",
-      department: "",
-      experienceRange: "",
-      ctcRange: "",
-      companyName: "",
-    });
-  } catch (err) {
-    console.error("Fetch error:", err);
-    setError("Error fetching user data: " + err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+      setUsers(usersArray);
+      setFilteredUsers(usersArray);
 
+      setFilters({
+        search: "",
+        gender: "",
+        currentState: "",
+        preferredState: "",
+        designation: "",
+        department: "",
+        experienceRange: "",
+        ctcRange: "",
+        companyName: "",
+      });
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError("Error fetching user data: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  // Fetch comments for a specific user
+  const fetchUserComments = async (userId) => {
+    try {
+      setCommentsLoading(true);
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/comments`
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUserComments(data.data.comments || []);
+        setCommentsUserInfo({
+          userName: data.data.userName,
+          userId: data.data.userId,
+          totalComments: data.data.totalComments,
+        });
+        setIsCommentsModalOpen(true);
+      } else {
+        throw new Error(data.message || "Failed to fetch comments");
+      }
+    } catch (err) {
+      console.error("Error fetching comments:", err);
+      alert("Error loading comments: " + err.message);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  // Helper to calculate age from DOB
+  const calculateAge = (dob) => {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
 
   // Apply filters
   const applyFilters = (userList, currentFilters) => {
@@ -204,6 +268,25 @@ const AdminPage = () => {
       });
     }
 
+    // Age filter
+    if (currentFilters.ageRange) {
+      filtered = filtered.filter((user) => {
+        const age = calculateAge(user.dateOfBirth);
+        switch (currentFilters.ageRange) {
+          case "20-30":
+            return age >= 20 && age <= 30;
+          case "31-40":
+            return age >= 31 && age <= 40;
+          case "41-50":
+            return age >= 41 && age <= 50;
+          case "51-60":
+            return age >= 51 && age <= 60;
+          default:
+            return true;
+        }
+      });
+    }
+
     setFilteredUsers(filtered);
     setCurrentPage(1);
   };
@@ -287,47 +370,51 @@ const AdminPage = () => {
     return pages;
   };
 
+  // Fixed Excel export with current filters
+  const handleExportExcel = async () => {
+    try {
+      // Build query params from filters state
+      const params = new URLSearchParams();
 
-  // Fixed Excel export
- // Fixed Excel export with current filters
-const handleExportExcel = async () => {
-  try {
-    // Build query params from filters state
-    const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
 
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
-    });
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_BACKEND_URI
+        }/forms/download/export-excel?${params.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            Accept:
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        }
+      );
 
-    const response = await fetch(
-      `${import.meta.env.VITE_BACKEND_URI}/forms/download/export-excel?${params.toString()}`,
-      {
-        method: "GET",
-        headers: {
-          Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        },
+      if (!response.ok) {
+        throw new Error(
+          `Export failed: ${response.status} ${response.statusText}`
+        );
       }
-    );
 
-    if (!response.ok) {
-      throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `users_export_${
+        new Date().toISOString().split("T")[0]
+      }.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export error:", err);
+      alert("Failed to export Excel file: " + err.message);
     }
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `users_export_${new Date().toISOString().split("T")[0]}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error("Export error:", err);
-    alert("Failed to export Excel file: " + err.message);
-  }
-};
-
+  };
 
   // Handle form success (for both add and edit)
   const handleFormSuccess = () => {
@@ -339,9 +426,41 @@ const handleExportExcel = async () => {
 
   // Handle edit button click
   const handleEditClick = (user) => {
-    console.log("Edit user data:", user); // Debug log
+    console.log("Edit user data:", user);
     setSelectedUser(user);
     setIsEditModalOpen(true);
+  };
+
+  // Download resume function
+  const handleDownloadResume = async (userId, fileName) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/download-pdf`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("No Resume Uploaded");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName || `resume_${userId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download error:", error);
+      alert("Failed to download resume: " + error.message);
+    }
   };
 
   if (loading) {
@@ -386,6 +505,14 @@ const handleExportExcel = async () => {
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <button
+                onClick={handleNavigateToPanel}
+                className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
+              >
+                <Settings className="h-3 w-3" />
+                <span className="hidden xs:inline">Admin Panel</span>
+                <span className="xs:hidden">Panel</span>
+              </button>
+              <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="px-3 py-2 bg-[#B99D54] text-white rounded text-sm hover:bg-[#B99D54]/90 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
               >
@@ -415,10 +542,9 @@ const handleExportExcel = async () => {
 
         {/* Filters */}
         <div className="p-2 sm:p-3 border-b border-gray-200 bg-gray-50">
-          {/* Primary Filters - Always Visible */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
             {/* Search */}
-            <div className="relative">
+            <div className="relative col-span-1">
               <Search className="absolute left-2 top-2.5 sm:top-3 h-3 w-3 text-gray-500" />
               <input
                 type="text"
@@ -428,10 +554,9 @@ const handleExportExcel = async () => {
                 onChange={(e) => handleFilterChange("search", e.target.value)}
               />
             </div>
-
             {/* Gender */}
             <select
-              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.gender}
               onChange={(e) => handleFilterChange("gender", e.target.value)}
             >
@@ -440,14 +565,11 @@ const handleExportExcel = async () => {
               <option value="Female">Female</option>
               <option value="Other">Other</option>
             </select>
-
             {/* Experience Range */}
             <select
-              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.experienceRange}
-              onChange={(e) =>
-                handleFilterChange("experienceRange", e.target.value)
-              }
+              onChange={(e) => handleFilterChange("experienceRange", e.target.value)}
             >
               <option value="">All Experience</option>
               <option value="0-2">0-2 years</option>
@@ -455,10 +577,9 @@ const handleExportExcel = async () => {
               <option value="6-10">6-10 years</option>
               <option value="10+">10+ years</option>
             </select>
-
             {/* CTC Range */}
             <select
-              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.ctcRange}
               onChange={(e) => handleFilterChange("ctcRange", e.target.value)}
             >
@@ -468,62 +589,59 @@ const handleExportExcel = async () => {
               <option value="10-15">10-15 Lakhs</option>
               <option value="15+">15+ Lakhs</option>
             </select>
-          </div>
-
-          {/* Secondary Filters - Collapsible on Mobile */}
-          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            {/* Age Range */}
+            <select
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+              value={filters.ageRange}
+              onChange={(e) => handleFilterChange("ageRange", e.target.value)}
+            >
+              <option value="">All Ages</option>
+              <option value="20-30">20-30 years</option>
+              <option value="31-40">31-40 years</option>
+              <option value="41-50">41-50 years</option>
+              <option value="51-60">51-60 years</option>
+            </select>
             {/* Current State */}
             <input
               type="text"
               placeholder="Current state"
-              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.currentState}
-              onChange={(e) =>
-                handleFilterChange("currentState", e.target.value)
-              }
+              onChange={(e) => handleFilterChange("currentState", e.target.value)}
             />
-
             {/* Preferred State */}
             <input
               type="text"
               placeholder="Preferred state"
-              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.preferredState}
-              onChange={(e) =>
-                handleFilterChange("preferredState", e.target.value)
-              }
+              onChange={(e) => handleFilterChange("preferredState", e.target.value)}
             />
-
             {/* Designation */}
             <input
               type="text"
               placeholder="Designation"
-              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.designation}
-              onChange={(e) =>
-                handleFilterChange("designation", e.target.value)
-              }
+              onChange={(e) => handleFilterChange("designation", e.target.value)}
             />
-
             {/* Department */}
             <input
               type="text"
               placeholder="Department"
-              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.department}
               onChange={(e) => handleFilterChange("department", e.target.value)}
             />
-
             {/* Company Name */}
             <input
               type="text"
               placeholder="Company name"
-              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.companyName}
               onChange={(e) => handleFilterChange("companyName", e.target.value)}
             />
           </div>
-
           {/* Action Buttons */}
           <div className="mt-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <button
@@ -533,11 +651,10 @@ const handleExportExcel = async () => {
               Clear Filters
             </button>
             <button
-              onClick={clearFilters}
+              onClick={fetchUsers}
               className="px-3 py-2 sm:py-1.5 bg-[#1B2951] text-white rounded text-sm hover:bg-[#1B2951]/90 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
             >
               <RefreshCw className="h-3 w-3" />
-              
               Refresh Data
             </button>
           </div>
@@ -646,18 +763,27 @@ const handleExportExcel = async () => {
                     </div>
                   </td>
                   <td className="px-3 py-2">
-                    <span className="">
-                      <ul className="list-disc pl-4">
+                    <div className="flex flex-col items-start">
+                      <ul className="list-disc pl-4 mb-2">
                         {[user.comment1, user.comment2, user.comment3].map(
                           (comment, idx) =>
                             comment && (
                               <li key={idx} className="text-sm text-[#1B2951]">
-                                {comment}
+                                {comment.length > 50
+                                  ? `${comment.substring(0, 50)}...`
+                                  : comment}
                               </li>
                             )
                         )}
                       </ul>
-                    </span>
+                      <button
+                        onClick={() => fetchUserComments(user._id)}
+                        className="text-xs text-[#1B2951] hover:text-[#B99D54] flex items-center gap-1"
+                      >
+                        <Eye size={12} />
+                        View All Comments
+                      </button>
+                    </div>
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1">
@@ -667,6 +793,13 @@ const handleExportExcel = async () => {
                         title="Edit User"
                       >
                         <Edit className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => handleDownloadResume(user._id || user.id, `${user.firstName}_${user.lastName}_resume.pdf`)}
+                        className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                        title="Download Resume"
+                      >
+                        <Download className="h-3 w-3" />
                       </button>
                     </div>
                   </td>
@@ -790,6 +923,84 @@ const handleExportExcel = async () => {
               }}
               onSuccess={handleFormSuccess}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Comments Modal */}
+      {isCommentsModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto relative">
+            <div className="sticky top-0 bg-[#1B2951] text-white p-4 rounded-t-lg flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-semibold">User Comments</h2>
+                <p className="text-sm text-[#B99D54]">
+                  {commentsUserInfo.userName} (
+                  {commentsUserInfo.totalComments || 0} comments)
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setIsCommentsModalOpen(false);
+                  setUserComments([]);
+                  setCommentsUserInfo({});
+                }}
+                className="text-white hover:text-gray-200"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-4">
+              {commentsLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B2951]"></div>
+                  <span className="ml-2 text-[#1B2951]">
+                    Loading comments...
+                  </span>
+                </div>
+              ) : userComments.length > 0 ? (
+                <div className="space-y-4">
+                  {userComments.map((comment, index) => (
+                    <div
+                      key={comment._id || index}
+                      className="border-b border-gray-200 pb-4 last:border-b-0"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-[#B99D54]/20 rounded-full">
+                          <MessageSquare className="h-5 w-5 text-[#1B2951]" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700">
+                            {comment.text}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            By:{" "}
+                            <span className="font-medium">
+                              {comment.addedBy}
+                            </span>
+                            {comment.date && (
+                              <>
+                                {" "}
+                                &middot;{" "}
+                                {new Date(comment.date).toLocaleString()}
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">
+                    No comments found for this user.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

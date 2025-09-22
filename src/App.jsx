@@ -8,6 +8,8 @@ import AdminPage from "./component/AdminPage";
 import Register from "./component/Register";
 import Login from "./component/Login";
 import Logout from "./component/Logout";
+import ResetPassword from "./component/ResetPassword";
+import AdminPanel from "./component/AdminPannel";
 
 function App() {
   return (
@@ -26,7 +28,7 @@ function App() {
             path="/sub-user"
             element={
               <ProtectedRoute requiredRoles={["sub-user", "subuser"]}>
-                <SubUserPage/>
+                <SubUserPage />
               </ProtectedRoute>
             }
           />
@@ -46,8 +48,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route 
+          path="/admin/panel"
+          element={
+            <ProtectedRoute requiredRoles={["admin"]}>
+              <AdminPanel />
+            </ProtectedRoute>
+          } 
+          />
           <Route path="/register" element={<Register />} />
           <Route path="/logout" element={<Logout />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/" element={<Login />} />
         </Routes>
       </AuthProvider>
