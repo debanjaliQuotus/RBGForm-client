@@ -625,6 +625,8 @@ useEffect(() => {
       console.log("🔍 Form.jsx: InitialData keys:", Object.keys(initialData));
 
       const updatedData = { ...initialData };
+
+      // Handle date of birth conversion
       if (initialData.dateOfBirth) {
         const dateParts = initialData.dateOfBirth.split("-");
         if (dateParts.length === 3) {
@@ -632,6 +634,15 @@ useEffect(() => {
           updatedData.dobMonth = dateParts[1];
           updatedData.dobDay = dateParts[2];
         }
+      }
+
+      // Handle upload date mapping - check various possible field names
+      if (initialData.dateOfUpload) {
+        updatedData.uploadDate = initialData.dateOfUpload;
+      } else if (initialData.createdAt) {
+        updatedData.uploadDate = initialData.createdAt;
+      } else if (initialData.uploadedAt) {
+        updatedData.uploadDate = initialData.uploadedAt;
       }
 
       console.log("🔍 Form.jsx: Updated data being passed to reset:", updatedData);
