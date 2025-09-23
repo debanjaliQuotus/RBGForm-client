@@ -604,8 +604,11 @@ useEffect(() => {
 
   // Effect to set the upload date automatically
   useEffect(() => {
-    const currentDate = new Date().toISOString().split("T")[0];
-    setValue("uploadDate", currentDate);
+    // Only set current date for new forms (add mode), preserve existing date for edit mode
+    if (mode === "add") {
+      const currentDate = new Date().toISOString().split("T")[0];
+      setValue("uploadDate", currentDate);
+    }
   }, [mode, setValue]);
 
   // Effect to set the logged-in user's email in the 'uploadedBy' field
