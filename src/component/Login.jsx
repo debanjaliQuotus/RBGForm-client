@@ -14,6 +14,7 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
+  const [isResetSubmitting, setIsResetSubmitting] = useState(false);
   const { login } = useAuth();
 
   // --- Login Submit ---
@@ -37,7 +38,23 @@ const Login = () => {
       await login(user, token);
       toast.success("Login successful!");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Login failed");
+      if (error.response) {
+        // Server responded with error status
+        const status = error.response.status;
+        if (status === 401) {
+          toast.error("Invalid credentials. Please try again.");
+        } else if (status === 500) {
+          toast.error("Server error. Please try again later.");
+        } else {
+          toast.error(error.response.data?.message || "Login failed due to server error.");
+        }
+      } else if (error.request) {
+        // Network error
+        toast.error("Network error. Please check your internet connection and try again.");
+      } else {
+        // Other error
+        toast.error("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -51,6 +68,14 @@ const Login = () => {
       return;
     }
 
+    // Basic email validation
+    const emailRegex = /^\S+@\S+$/i;
+    if (!emailRegex.test(resetEmail)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    setIsResetSubmitting(true);
     try {
       await axios.post(
         `${import.meta.env.VITE_BACKEND_URI}/users/forgot-password`,
@@ -60,7 +85,22 @@ const Login = () => {
       setIsResetOpen(false);
       setResetEmail("");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to send reset email");
+      if (error.response) {
+        const status = error.response.status;
+        if (status === 404) {
+          toast.error("Email not found. Please check your email address.");
+        } else if (status === 500) {
+          toast.error("Server error. Please try again later.");
+        } else {
+          toast.error(error.response.data?.message || "Failed to send reset email.");
+        }
+      } else if (error.request) {
+        toast.error("Network error. Please check your internet connection and try again.");
+      } else {
+        toast.error("An unexpected error occurred. Please try again.");
+      }
+    } finally {
+      setIsResetSubmitting(false);
     }
   };
 
@@ -73,7 +113,7 @@ const Login = () => {
           </h2>
         </div>
         <form
-          className="mt-8 px-8 pb-8 space-y-7"
+          className="mt-8 px-8 pb-8 space-y-4"
           onSubmit={handleSubmit(onSubmit)}
         >
           {/* Email */}
@@ -187,15 +227,17 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setIsResetOpen(false)}
-                  className="px-4 py-2 rounded-md border text-gray-600 hover:bg-gray-100"
+                  disabled={isResetSubmitting}
+                  className="px-4 py-2 rounded-md border text-gray-600 hover:bg-gray-100 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-md bg-[#bfa75a] text-[#1a2a52] font-semibold hover:bg-[#a88f3f]"
+                  disabled={isResetSubmitting}
+                  className="px-4 py-2 rounded-md bg-[#bfa75a] text-[#1a2a52] font-semibold hover:bg-[#a88f3f] disabled:opacity-50"
                 >
-                  Send Reset Link
+                  {isResetSubmitting ? "Sending..." : "Send Reset Link"}
                 </button>
               </div>
             </form>

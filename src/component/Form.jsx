@@ -778,22 +778,22 @@ useEffect(() => {
 
         if (minExp < maxExp) {
           // Create range format like "2-5 years"
-          data.totalExperience = `${minExp}-${maxExp} years`;
+          data.totalExperience = `${minExp}-${maxExp} `;
         } else if (minExp === maxExp) {
           // Same value, just show single value
-          data.totalExperience = `${minExp} years`;
+          data.totalExperience = `${minExp}`;
         } else {
           // Min is greater than max, swap them
-          data.totalExperience = `${maxExp}-${minExp} years`;
+          data.totalExperience = `${maxExp}-${minExp} `;
         }
       } else if (data.totalExperienceMin !== undefined && data.totalExperienceMin !== "") {
         // Only min specified
         const minExp = parseInt(data.totalExperienceMin);
-        data.totalExperience = `${minExp}+ years`;
+        data.totalExperience = `${minExp} `;
       } else if (data.totalExperienceMax !== undefined && data.totalExperienceMax !== "") {
         // Only max specified
         const maxExp = parseInt(data.totalExperienceMax);
-        data.totalExperience = `0-${maxExp} years`;
+        data.totalExperience = `0-${maxExp}`;
       }
 
       // Fields that should NOT be sent to backend (system fields)
@@ -1349,13 +1349,13 @@ useEffect(() => {
 
               {/* Location Section */}
               <div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 gap-8">
                   {/* Current Location */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-700 mb-4 pt-2">
                       Current Location
                     </h3>
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                           State
@@ -1412,7 +1412,7 @@ useEffect(() => {
                     <h3 className="text-lg font-semibold text-gray-700 mb-4 pt-2">
                       Preferred Location
                     </h3>
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                           State
@@ -1710,7 +1710,7 @@ useEffect(() => {
                             <option value="">Min</option>
                             {Array.from({ length: 36 }, (_, i) => (
                               <option key={i} value={i}>
-                                {i === 35 ? "35+" : `${i} years`}
+                                {i === 35 ? "35+" : `${i}`}
                               </option>
                             ))}
                           </select>
@@ -1731,7 +1731,7 @@ useEffect(() => {
                             <option value="">Max</option>
                             {Array.from({ length: 36 }, (_, i) => (
                               <option key={i} value={i}>
-                                {i === 35 ? "35+" : `${i} years`}
+                                {i === 35 ? "35+" : `${i}`}
                               </option>
                             ))}
                           </select>

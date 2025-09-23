@@ -695,7 +695,7 @@ const SubUserPage = () => {
               <option value="">Min Experience</option>
               {Array.from({ length: 36 }, (_, i) => (
                 <option key={i} value={i}>
-                  {i === 35 ? "35+" : `${i} years`}
+                  {i === 35 ? "35+" : `${i} `}
                 </option>
               ))}
             </select>
@@ -709,7 +709,7 @@ const SubUserPage = () => {
               <option value="">Max Experience</option>
               {Array.from({ length: 36 }, (_, i) => (
                 <option key={i} value={i}>
-                  {i === 35 ? "35+" : `${i} years`}
+                  {i === 35 ? "35+" : `${i} `}
                 </option>
               ))}
             </select>
@@ -751,12 +751,12 @@ const SubUserPage = () => {
               value={filters.ageRange}
               onChange={(e) => handleFilterChange("ageRange", e.target.value)}
             >
-              <option value="">All Ages</option>
-              <option value="18-25">18-25 years</option>
-              <option value="26-35">26-35 years</option>
-              <option value="36-45">36-45 years</option>
-              <option value="46-55">46-55 years</option>
-              <option value="55+">55+ years</option>
+              <option value="">Ages</option>
+              <option value="18-25">18-25 </option>
+              <option value="26-35">26-35 </option>
+              <option value="36-45">36-45 </option>
+              <option value="46-55">46</option>
+              <option value="55+">55+ </option>
             </select>
 
             {/* Upload Date */}

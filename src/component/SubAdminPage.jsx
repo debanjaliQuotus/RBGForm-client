@@ -607,7 +607,7 @@ const SubAdminPage = () => {
               <option value="">Min Experience</option>
               {Array.from({ length: 36 }, (_, i) => (
                 <option key={i} value={i}>
-                  {i === 35 ? "35+" : `${i} years`}
+                  {i === 35 ? "35+" : `${i}`}
                 </option>
               ))}
             </select>
@@ -620,7 +620,7 @@ const SubAdminPage = () => {
               <option value="">Max Experience</option>
               {Array.from({ length: 36 }, (_, i) => (
                 <option key={i} value={i}>
-                  {i === 35 ? "35+" : `${i} years`}
+                  {i === 35 ? "35+" : `${i} `}
                 </option>
               ))}
             </select>
@@ -661,10 +661,10 @@ const SubAdminPage = () => {
               onChange={(e) => handleFilterChange("ageRange", e.target.value)}
             >
               <option value=""> Ages</option>
-              <option value="20-30">20-30 years</option>
-              <option value="31-40">31-40 years</option>
-              <option value="41-50">41-50 years</option>
-              <option value="51-60">51-60 years</option>
+              <option value="20-30">20-30</option>
+              <option value="31-40">31-40</option>
+              <option value="41-50">41-50</option>
+              <option value="51-60">51-60</option>
             </select>
             {/* Current State */}
             <input
