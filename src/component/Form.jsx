@@ -618,6 +618,9 @@ useEffect(() => {
   // Fill form if editing
   useEffect(() => {
     if (initialData) {
+      console.log("🔍 Form.jsx: Received initialData for editing:", initialData);
+      console.log("🔍 Form.jsx: InitialData keys:", Object.keys(initialData));
+
       const updatedData = { ...initialData };
       if (initialData.dateOfBirth) {
         const dateParts = initialData.dateOfBirth.split("-");
@@ -627,7 +630,10 @@ useEffect(() => {
           updatedData.dobDay = dateParts[2];
         }
       }
+
+      console.log("🔍 Form.jsx: Updated data being passed to reset:", updatedData);
       reset(updatedData);
+
       // Set comments from existing data (do NOT use comment1, comment2, comment3)
       if (
         Array.isArray(initialData.comments) &&

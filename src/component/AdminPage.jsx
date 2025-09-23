@@ -454,7 +454,9 @@ const AdminPage = () => {
 
   // Handle edit button click
   const handleEditClick = (user) => {
-    console.log("Edit user data:", user);
+    console.log("🔍 AdminPage.jsx: Edit user data:", user);
+    console.log("🔍 AdminPage.jsx: User data keys:", Object.keys(user));
+    console.log("🔍 AdminPage.jsx: User data structure:", JSON.stringify(user, null, 2));
     setSelectedUser(user);
     setIsEditModalOpen(true);
   };
