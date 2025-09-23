@@ -645,7 +645,7 @@ const SubAdminPage = () => {
                   value={filters.ctcAdditional || ""}
                   onChange={(e) => handleFilterChange("ctcAdditional", e.target.value)}
                 >
-                  <option value="">Additional CTC</option>
+                  <option value=""> CTC</option>
                   {Array.from({ length: 10 }, (_, i) => (
                     <option key={i} value={String(i).padStart(2, '0')}>
                       {String(i).padStart(2, '0')}
