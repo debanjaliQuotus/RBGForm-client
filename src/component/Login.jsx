@@ -67,20 +67,20 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="bg-[#1a2a52] rounded-t-lg py-4 px-6">
+        <div className="bg-[#1a2a52] rounded-t-lg py-6 px-8">
           <h2 className="text-white text-center text-3xl font-extrabold">
             Sign in to your account
           </h2>
         </div>
         <form
-          className="mt-6 px-6 pb-6 space-y-6"
+          className="mt-8 px-8 pb-8 space-y-7"
           onSubmit={handleSubmit(onSubmit)}
         >
           {/* Email */}
-          <div>
+          <div className="space-y-2">
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-[#1a2a52] mb-1"
+              className="block text-sm font-medium text-[#1a2a52]"
             >
               Email address
             </label>
@@ -108,10 +108,10 @@ const Login = () => {
           </div>
 
           {/* Password */}
-          <div>
+          <div className="space-y-2">
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-[#1a2a52] mb-1"
+              className="block text-sm font-medium text-[#1a2a52]"
             >
               Password
             </label>
@@ -133,7 +133,7 @@ const Login = () => {
           </div>
 
           {/* Forgot Password link */}
-          <div className="text-right">
+          <div className="flex justify-end">
             <button
               type="button"
               onClick={() => setIsResetOpen(true)}

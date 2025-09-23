@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
 import { LogOut } from "lucide-react";
@@ -117,6 +117,128 @@ const INDIAN_STATES = [
   "Puducherry",
 ];
 
+// State to state code mapping for API calls
+const STATE_CODE_MAPPING = {
+  "Andhra Pradesh": "AP",
+  "Arunachal Pradesh": "AR",
+  Assam: "AS",
+  Bihar: "BR",
+  Chhattisgarh: "CG",
+  Goa: "GA",
+  Gujarat: "GJ",
+  Haryana: "HR",
+  "Himachal Pradesh": "HP",
+  Jharkhand: "JH",
+  Karnataka: "KA",
+  Kerala: "KL",
+  "Madhya Pradesh": "MP",
+  Maharashtra: "MH",
+  Manipur: "MN",
+  Meghalaya: "ML",
+  Mizoram: "MZ",
+  Nagaland: "NL",
+  Odisha: "OR",
+  Punjab: "PB",
+  Rajasthan: "RJ",
+  Sikkim: "SK",
+  "Tamil Nadu": "TN",
+  Telangana: "TG",
+  Tripura: "TR",
+  "Uttar Pradesh": "UP",
+  Uttarakhand: "UT",
+  "West Bengal": "WB",
+  "Andaman and Nicobar Islands": "AN",
+  Chandigarh: "CH",
+  "Dadra and Nagar Haveli and Daman and Diu": "DH",
+  Delhi: "DL",
+  "Jammu and Kashmir": "JK",
+  Ladakh: "LA",
+  Lakshadweep: "LD",
+  Puducherry: "PY",
+};
+
+// Local cities database as fallback for problematic states
+const LOCAL_CITIES = {
+  "Odisha": [
+    "Bhubaneswar",
+    "Cuttack",
+    "Rourkela",
+    "Brahmapur",
+    "Sambalpur",
+    "Puri",
+    "Balasore",
+    "Bhadrak",
+    "Baripada",
+    "Jharsuguda",
+    "Jeypore",
+    "Angul",
+    "Dhenkanal",
+    "Kendrapara",
+    "Nayagarh",
+    "Nuapada",
+    "Rayagada",
+    "Sundargarh",
+    "Gajapati",
+    "Kandhamal",
+    "Boudh",
+    "Deogarh",
+    "Jagatsinghpur",
+    "Jajpur",
+    "Kalahandi",
+    "Kendujhar",
+    "Malkangiri",
+    "Nabarangpur",
+    "Subarnapur",
+    "Koraput"
+  ],
+  "Karnataka": [
+    "Bangalore",
+    "Bengaluru",
+    "Mysore",
+    "Mysuru",
+    "Hubli",
+    "Dharwad",
+    "Mangalore",
+    "Belgaum",
+    "Belagavi",
+    "Gulbarga",
+    "Kalaburagi",
+    "Davangere",
+    "Bellary",
+    "Ballari",
+    "Bijapur",
+    "Vijayapura",
+    "Shimoga",
+    "Shivamogga",
+    "Tumkur",
+    "Tumakuru",
+    "Raichur",
+    "Bidar",
+    "Hospet",
+    "Gadag",
+    "Betigeri",
+    "Robertsonpet",
+    "KGF",
+    "Hassan",
+    "Chitradurga",
+    "Udupi",
+    "Mandya",
+    "Bhadravati",
+    "Chikmagalur",
+    "Chikkamagaluru",
+    "Kolar",
+    "Bagalkot",
+    "Haveri",
+    "Yadgir",
+    "Chamarajanagar",
+    "Chikkaballapura",
+    "Chikballapur",
+    "Ramanagara",
+    "Kodagu",
+    "Madikeri"
+  ]
+};
+
 // API endpoints for fetching location data
 const LOCATION_APIS = {
   // States of India - now using local data
@@ -134,26 +256,50 @@ const LOCATION_APIS = {
     }
   },
 
-  // Cities (GeoDB API via RapidAPI)
-  cities: async (query) => {
+  // Cities (GeoDB API via RapidAPI) - now filtered by state with local fallback
+  cities: async (query, stateCode = null) => {
     if (!query) return [];
+    console.log(`🏙️ Cities API called with query: "${query}", stateCode: "${stateCode}"`);
     try {
-      const res = await fetch(
-        `https://wft-geo-db.p.rapidapi.com/v1/geo/cities?countryIds=IN&namePrefix=${query}&limit=10`,
-        {
-          headers: {
-            "X-RapidAPI-Key":
-              "8acb9381a3mshea3bfd0bb433a6dp197841jsn1a5356656ec7", // 🔑 Replace with your key
-            "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
-          },
-        }
+      // Check if we have local cities for this state (fallback for problematic states)
+      const stateName = Object.keys(LOCAL_CITIES).find(state =>
+        STATE_CODE_MAPPING[state] === stateCode
       );
+
+      if (stateName && LOCAL_CITIES[stateName]) {
+        console.log(`🏠 Using local cities for ${stateName} (stateCode: ${stateCode})`);
+        const localCities = LOCAL_CITIES[stateName].filter(city =>
+          city.toLowerCase().includes(query.toLowerCase())
+        );
+        await new Promise(resolve => setTimeout(resolve, 100)); // Simulate API delay
+        return localCities.slice(0, 10);
+      }
+
+      // Use API for other states
+      let url = `https://wft-geo-db.p.rapidapi.com/v1/geo/cities?countryIds=IN&namePrefix=${query}&limit=10`;
+
+      // Add state filter if state is selected
+      if (stateCode) {
+        url += `&stateCode=${stateCode}`;
+        console.log(`🔍 Cities API: Filtering by stateCode=${stateCode}, URL: ${url}`);
+      } else {
+        console.log(`🔍 Cities API: No state filter, URL: ${url}`);
+      }
+
+      const res = await fetch(url, {
+        headers: {
+          "X-RapidAPI-Key":
+            "8acb9381a3mshea3bfd0bb433a6dp197841jsn1a5356656ec7", // 🔑 Replace with your key
+          "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
+        },
+      });
 
       if (!res.ok) {
         throw new Error(`API responded with status: ${res.status}`);
       }
 
       const responseData = await res.json();
+      console.log(`📡 Cities API Response:`, responseData);
 
       // Handle different possible response structures
       const data =
@@ -165,7 +311,7 @@ const LOCATION_APIS = {
         return [];
       }
 
-      return data
+      const cities = data
         .map((city) => {
           // Handle different city object structures
           if (typeof city === "string") {
@@ -180,8 +326,48 @@ const LOCATION_APIS = {
           );
         })
         .filter(Boolean); // Remove any undefined/null values
+
+      // Additional validation: if we have a state code, ensure cities actually belong to that state
+      if (stateCode && stateName) {
+        console.log(`🔍 Validating ${cities.length} cities for ${stateName}...`);
+        const validatedCities = cities.filter(city => {
+          const cityLower = city.toLowerCase();
+          const stateCities = LOCAL_CITIES[stateName].map(c => c.toLowerCase());
+
+          // Check if city exists in our local database for this state
+          const isValidCity = stateCities.some(localCity =>
+            cityLower.includes(localCity) || localCity.includes(cityLower)
+          );
+
+          if (!isValidCity) {
+            console.warn(`⚠️ City "${city}" doesn't belong to ${stateName}, filtering out`);
+          }
+
+          return isValidCity;
+        });
+
+        console.log(`✅ Validated cities for ${stateName}:`, validatedCities);
+        return validatedCities;
+      }
+
+      console.log(`🏙️ Filtered cities for stateCode=${stateCode}:`, cities);
+      return cities;
     } catch (err) {
       console.error("❌ Cities API failed:", err.message);
+
+      // Fallback to local cities if API fails and we have local data
+      const stateName = Object.keys(LOCAL_CITIES).find(state =>
+        STATE_CODE_MAPPING[state] === stateCode
+      );
+
+      if (stateName && LOCAL_CITIES[stateName]) {
+        console.log(`🔄 API failed, falling back to local cities for ${stateName}`);
+        const localCities = LOCAL_CITIES[stateName].filter(city =>
+          city.toLowerCase().includes(query.toLowerCase())
+        );
+        return localCities.slice(0, 10);
+      }
+
       return [];
     }
   },
@@ -210,6 +396,8 @@ const DebouncedAutoComplete = ({
   placeholder,
   apiType,
   className,
+  stateCode = null,
+  disabled = false,
 }) => {
   const [inputValue, setInputValue] = useState(value || "");
   const [filteredOptions, setFilteredOptions] = useState([]);
@@ -217,13 +405,35 @@ const DebouncedAutoComplete = ({
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef(null);
 
+  // Reset input when value prop changes
+  useEffect(() => {
+    setInputValue(value || "");
+  }, [value]);
+
+  // Reset options when stateCode changes
+  useEffect(() => {
+    if (apiType === "cities" && stateCode) {
+      setFilteredOptions([]);
+      setIsOpen(false);
+    }
+  }, [stateCode, apiType]);
+
   const fetchOptions = useCallback(
     debounce(async (searchValue) => {
+      // Don't search cities if no state is selected
+      if (apiType === "cities" && !stateCode) {
+        console.log(`🚫 No state selected for cities search`);
+        setFilteredOptions([]);
+        setIsOpen(false);
+        return;
+      }
+
       if (searchValue && searchValue.length >= 1) {
-        // Changed to 1 for better UX
         setIsLoading(true);
+        console.log(`🔍 Fetching ${apiType} for "${searchValue}" with stateCode: "${stateCode}"`);
         try {
-          const results = await LOCATION_APIS[apiType](searchValue);
+          const results = await LOCATION_APIS[apiType](searchValue, stateCode);
+          console.log(`✅ Fetched ${results.length} ${apiType} results:`, results);
           setFilteredOptions(results);
           setIsOpen(results.length > 0);
         } catch (err) {
@@ -238,28 +448,15 @@ const DebouncedAutoComplete = ({
         setIsOpen(false);
         setIsLoading(false);
       }
-    }, 300), // Reduced debounce time for faster feedback
-    [apiType]
+    }, 300),
+    [apiType, stateCode]
   );
-
-  useEffect(() => {
-    setInputValue(value || "");
-  }, [value]);
 
   useEffect(() => {
     fetchOptions(inputValue);
   }, [inputValue, fetchOptions]);
 
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
+  // Add the missing handleInputChange function
   const handleInputChange = (e) => {
     const newValue = e.target.value;
     setInputValue(newValue);
@@ -272,6 +469,18 @@ const DebouncedAutoComplete = ({
     setIsOpen(false);
   };
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const isDisabled = disabled || (apiType === "cities" && !stateCode);
+
   return (
     <div ref={containerRef} className="relative w-full">
       <input
@@ -279,13 +488,13 @@ const DebouncedAutoComplete = ({
         name={name}
         value={inputValue}
         onChange={handleInputChange}
-        placeholder={placeholder}
-        className={className}
+        placeholder={isDisabled ? "Select state first" : placeholder}
+        className={`${className} ${isDisabled ? "bg-gray-100 cursor-not-allowed opacity-60" : ""}`}
         onFocus={() => {
-          // Re-check options on focus if input has value
-          if (inputValue) fetchOptions(inputValue);
+          if (!isDisabled && inputValue) fetchOptions(inputValue);
         }}
         autoComplete="off"
+        disabled={isDisabled}
       />
       {isLoading && (
         <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
@@ -364,6 +573,8 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
     },
   });
 
+
+
   const contactNoValue = watch("contactNo");
   const alternateContactNoValue = watch("alternateContactNo");
   const panNoValue = watch("panNo");
@@ -371,6 +582,22 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   const watchDepartment = watch("department");
   const [ctcDisplay, setCtcDisplay] = useState("");
   const ctcValue = watch("ctcInLakhs");
+
+  // Watch state values for city filtering
+  const currentStateValue = watch("currentState");
+  const preferredStateValue = watch("preferredState");
+
+    useEffect(() => {
+  if (currentStateValue) {
+    setValue("currentCity", "");
+  }
+}, [currentStateValue, setValue]);
+
+useEffect(() => {
+  if (preferredStateValue) {
+    setValue("preferredCity", "");
+  }
+}, [preferredStateValue, setValue]);
   useEffect(() => {
     setCtcDisplay(ctcValue || "");
   }, [ctcValue]);
@@ -404,8 +631,11 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       }
       reset(updatedData);
       // Set comments from existing data (do NOT use comment1, comment2, comment3)
-      if (Array.isArray(initialData.comments) && initialData.comments.length > 0) {
-        setComments(initialData.comments.map(c => c.text || ""));
+      if (
+        Array.isArray(initialData.comments) &&
+        initialData.comments.length > 0
+      ) {
+        setComments(initialData.comments.map((c) => c.text || ""));
       } else {
         setComments([""]);
       }
@@ -1094,9 +1324,23 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                       render={({ field }) => (
                         <DebouncedAutoComplete
                           {...field}
-                          placeholder="Select current city"
+                          placeholder={
+                            currentStateValue
+                              ? "Select current city"
+                              : "Select state first"
+                          }
                           apiType="cities"
                           className={inputClass}
+                          stateCode={
+                            STATE_CODE_MAPPING[currentStateValue] || null
+                          }
+                          // Debug logging
+                          onFocus={() => {
+                            const stateCode = STATE_CODE_MAPPING[currentStateValue] || null;
+                            console.log(`🔍 Current State: "${currentStateValue}", StateCode: "${stateCode}"`);
+                            console.log(`🔍 STATE_CODE_MAPPING["${currentStateValue}"] = "${stateCode}"`);
+                          }}
+                          disabled={!currentStateValue}
                         />
                       )}
                     />
@@ -1137,9 +1381,23 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                       render={({ field }) => (
                         <DebouncedAutoComplete
                           {...field}
-                          placeholder="Select preferred city"
+                          placeholder={
+                            preferredStateValue
+                              ? "Select preferred city"
+                              : "Select state first"
+                          }
                           apiType="cities"
                           className={inputClass}
+                          stateCode={
+                            STATE_CODE_MAPPING[preferredStateValue] || null
+                          }
+                          // Debug logging
+                          onFocus={() => {
+                            const stateCode = STATE_CODE_MAPPING[preferredStateValue] || null;
+                            console.log(`🔍 Preferred State: "${preferredStateValue}", StateCode: "${stateCode}"`);
+                            console.log(`🔍 STATE_CODE_MAPPING["${preferredStateValue}"] = "${stateCode}"`);
+                          }}
+                          disabled={!preferredStateValue}
                         />
                       )}
                     />
@@ -1356,7 +1614,10 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                         <option value="">Select</option>
                         {/* Show ranges like 0-1, 1-2, ..., 34-35, 35+ */}
                         {Array.from({ length: 36 }, (_, i) => (
-                          <option key={i} value={i === 35 ? "35+" : `${i}-${i + 1}`}>
+                          <option
+                            key={i}
+                            value={i === 35 ? "35+" : `${i}-${i + 1}`}
+                          >
                             {i === 35 ? "35+ years" : `${i}-${i + 1} years`}
                           </option>
                         ))}
