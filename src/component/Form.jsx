@@ -739,7 +739,6 @@ useEffect(() => {
         "designation",
         "department",
         "ctcInLakhs",
-        "totalExperience",
       ];
 
       // Fields that should NOT be sent to backend (system fields)
@@ -1605,7 +1604,7 @@ useEffect(() => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Total Experience (Years)
+                    Total Experience (Years) <span className="text-gray-500 font-normal">(Optional)</span>
                   </label>
                   <Controller
                     name="totalExperience"
