@@ -41,6 +41,8 @@ const AdminPage = () => {
     gender: "",
     currentState: "",
     preferredState: "",
+    currentCity: "",
+    preferredCity: "",
     designation: "",
     department: "",
     experienceRange: "",
@@ -87,11 +89,14 @@ const AdminPage = () => {
         gender: "",
         currentState: "",
         preferredState: "",
+        currentCity: "",
+        preferredCity: "",
         designation: "",
         department: "",
         experienceRange: "",
         ctcRange: "",
         companyName: "",
+        ageRange: "",
       });
     } catch (err) {
       console.error("Fetch error:", err);
@@ -199,6 +204,26 @@ const AdminPage = () => {
       );
     }
 
+    // Current/Preferred city
+    if (currentFilters.currentCity) {
+      filtered = filtered.filter(
+        (user) =>
+          user.currentCity &&
+          user.currentCity
+            .toLowerCase()
+            .includes(currentFilters.currentCity.toLowerCase())
+      );
+    }
+    if (currentFilters.preferredCity) {
+      filtered = filtered.filter(
+        (user) =>
+          user.preferredCity &&
+          user.preferredCity
+            .toLowerCase()
+            .includes(currentFilters.preferredCity.toLowerCase())
+      );
+    }
+
     // Designation/Department
     if (currentFilters.designation) {
       filtered = filtered.filter(
@@ -303,11 +328,14 @@ const AdminPage = () => {
       gender: "",
       currentState: "",
       preferredState: "",
+      currentCity: "",
+      preferredCity: "",
       designation: "",
       department: "",
       experienceRange: "",
       ctcRange: "",
       companyName: "",
+      ageRange: "",
     };
     setFilters(emptyFilters);
     setFilteredUsers(users);
@@ -616,6 +644,22 @@ const AdminPage = () => {
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.preferredState}
               onChange={(e) => handleFilterChange("preferredState", e.target.value)}
+            />
+            {/* Current City */}
+            <input
+              type="text"
+              placeholder="Current city"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+              value={filters.currentCity}
+              onChange={(e) => handleFilterChange("currentCity", e.target.value)}
+            />
+            {/* Preferred City */}
+            <input
+              type="text"
+              placeholder="Preferred city"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+              value={filters.preferredCity}
+              onChange={(e) => handleFilterChange("preferredCity", e.target.value)}
             />
             {/* Designation */}
             <input

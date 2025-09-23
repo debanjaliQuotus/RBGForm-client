@@ -876,7 +876,7 @@ useEffect(() => {
     if (errors[fieldName]) {
       return null;
     }
-    // Show warning if the field has text but is not yet the required length
+    // Show warning if the field has text but is not yet the required length-
     if (value && value.length > 0 && value.length < requiredLength) {
       return (
         <p className="text-yellow-600 text-xs mt-1">
