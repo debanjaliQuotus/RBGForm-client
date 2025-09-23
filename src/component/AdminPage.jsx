@@ -18,6 +18,110 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
+// Department options for filter dropdown
+const DEPARTMENT_OPTIONS = [
+  "Agency",
+  "Banca",
+  "Direct",
+  "Training",
+  "Operations / Back-office",
+  "Underwriting",
+  "NPS",
+  "Strategy",
+  "Product Development",
+  "Claims Management",
+  "Retension",
+  "Actuarial",
+  "Broking Channel",
+  "SME Agency",
+  "Defence",
+  "Reinsurance",
+  "Online/Digital Sales",
+  "Telly - VRM",
+  "Policy Servicing / Customer Service",
+  "Compliance & Legal",
+  "Risk Management",
+  "Regulatory compliance",
+  "Finance & Accounts",
+  "Investments / Fund Management",
+  "Human Resources (HR)",
+  "IT / Technology",
+  "Administration & Facilities",
+  "Marketing & Brand Management",
+  "Analytics & Business Intelligence",
+  "Partnership & Alliances Acquisition",
+  "Corportate Sales",
+  "OEM",
+  "Group Insurance",
+  "Other"
+];
+
+// Company options for filter dropdown
+const COMPANY_OPTIONS = [
+  // Life Insurance
+  "Acko Life Insurance Ltd",
+  "Aditya Birla Sun Life Insurance Co. Ltd",
+  "Ageas Federal Life Insurance Company Limited",
+  "Aviva Life Insurance Company India Limited",
+  "Bajaj Allianz Life Insurance Co. Ltd.",
+  "Bandhan Life Insurance (formerly Aegon Life)",
+  "Canara HSBC Life Insurance Company Limited",
+  "Edelweiss Life Insurance Company Limited",
+  "Future Generali India Life Insurance Company limited",
+  "Go Digit Life Insurance Limited",
+  "HDFC Life Insurance Co. Ltd",
+  "ICICI Prudential Life Insurance Co. Ltd",
+  "IndiaFirst Life Insurance Company Limited",
+  "Kotak Mahindra life Insurance Co. Ltd",
+  "Life Insurance Corporation of India",
+  "PNB MetLife India Insurance Company Limited",
+  "Reliance Nippon Life Insurance Company Limited",
+  "Sahara India Life Insurance Company Limited",
+  "SBI Life Insurance Co. Ltd",
+  "Shriram Life Insurance Company Limited",
+  "Star Union Dai-ichi Life Insurance Company Limited",
+  "TATA AIA Life Insurance Co. Ltd",
+  // General Insurance
+  "Acko General Insurance Ltd",
+  "Agriculture Insurance Company of India Limited",
+  "Bajaj Allianz General Insurance",
+  "Cholamandalam MS General Insurance Company Limited",
+  "ECGC Limited",
+  "Go Digit General Insurance Limited",
+  "HDFC ERGO General Insurance Company Limited",
+  "ICICI Lombard General Insurance",
+  "IFFCO TOKIO General Insurance Company Limited",
+  "Kotak Mahindra General Insurance",
+  "Liberty General Insurance Limited",
+  "Magma HDI General Insurance Company Limited",
+  "National Insurance Company Limited",
+  "Navi General Insurance Limited",
+  "New India Assurance",
+  "Raheja QBE General Insurance Co. Ltd.",
+  "Reliance General Insurance",
+  "Royal Sundaram General Insurance",
+  "SBI General Insurance",
+  "Shriram General Insurance",
+  "Tata AIG General Insurance",
+  "The Oriental Insurance Co",
+  "United India Insurance Co",
+  "Universal Sompo General Insurance",
+  "Zuno General Insurance (formerly Edelweiss)",
+  // Health Insurance
+  "Aditya Birla Health Insurance",
+  "Care Health Insurance",
+  "ManipalCigna Health Insurance",
+  "Niva Bupa Health Insurance",
+  "Star Health & Allied Insurance",
+  "Galaxy Health Insurance Company Limited",
+  "Narayana Health Insurance Ltd",
+  // Insurance Broker
+  "Marsh India Insurance Brokers",
+  "Mahindra Insurance Brokers Ltd",
+  "Policybazaar Insurance Brokers Pvt. Ltd",
+  "Howden Insurance Brokers India Pvt. Ltd",
+];
+
 const AdminPage = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -45,10 +149,13 @@ const AdminPage = () => {
     preferredCity: "",
     designation: "",
     department: "",
-    experienceRange: "",
-    ctcRange: "",
+    experienceMin: "",
+    experienceMax: "",
+    ctcMain: "",
+    ctcAdditional: "",
     companyName: "",
     ageRange: "", // <-- Add age filter
+    uploadDate: "",
   });
 
   // Handle logout
@@ -84,20 +191,23 @@ const AdminPage = () => {
       setUsers(usersArray);
       setFilteredUsers(usersArray);
 
-      setFilters({
-        search: "",
-        gender: "",
-        currentState: "",
-        preferredState: "",
-        currentCity: "",
-        preferredCity: "",
-        designation: "",
-        department: "",
-        experienceRange: "",
-        ctcRange: "",
-        companyName: "",
-        ageRange: "",
-      });
+    setFilters({
+      search: "",
+      gender: "",
+      currentState: "",
+      preferredState: "",
+      currentCity: "",
+      preferredCity: "",
+      designation: "",
+      department: "",
+      experienceMin: "",
+      experienceMax: "",
+      ctcMain: "",
+      ctcAdditional: "",
+      companyName: "",
+      ageRange: "",
+      uploadDate: "",
+    });
     } catch (err) {
       console.error("Fetch error:", err);
       setError("Error fetching user data: " + err.message);
@@ -255,41 +365,44 @@ const AdminPage = () => {
       );
     }
 
-    // Experience
-    if (currentFilters.experienceRange) {
+    // Experience Range
+    if (currentFilters.experienceMin || currentFilters.experienceMax) {
       filtered = filtered.filter((user) => {
         const exp = parseFloat(user.totalExperience) || 0;
-        switch (currentFilters.experienceRange) {
-          case "0-2":
-            return exp >= 0 && exp <= 2;
-          case "3-5":
-            return exp >= 3 && exp <= 5;
-          case "6-10":
-            return exp >= 6 && exp <= 10;
-          case "10+":
-            return exp > 10;
-          default:
-            return true;
-        }
+        const minExp = currentFilters.experienceMin ? parseFloat(currentFilters.experienceMin) : 0;
+        const maxExp = currentFilters.experienceMax ? parseFloat(currentFilters.experienceMax) : Infinity;
+
+        return exp >= minExp && exp <= maxExp;
       });
     }
 
-    // CTC
-    if (currentFilters.ctcRange) {
+    // CTC - Two dropdown filter
+    if (currentFilters.ctcMain || currentFilters.ctcAdditional) {
       filtered = filtered.filter((user) => {
-        const ctc = parseFloat(user.ctcInLakhs) || 0;
-        switch (currentFilters.ctcRange) {
-          case "0-5":
-            return ctc >= 0 && ctc <= 5;
-          case "5-10":
-            return ctc > 5 && ctc <= 10;
-          case "10-15":
-            return ctc > 10 && ctc <= 15;
-          case "15+":
-            return ctc > 15;
-          default:
-            return true;
+        const userCtc = parseFloat(user.ctcInLakhs) || 0;
+
+        // If only main CTC is selected
+        if (currentFilters.ctcMain && !currentFilters.ctcAdditional) {
+          const mainCtc = parseFloat(currentFilters.ctcMain);
+          return userCtc >= mainCtc && userCtc < (mainCtc + 1);
         }
+
+        // If only additional CTC is selected
+        if (!currentFilters.ctcMain && currentFilters.ctcAdditional) {
+          const additionalCtc = parseFloat(currentFilters.ctcAdditional) / 100;
+          const targetCtc = Math.floor(userCtc) + additionalCtc;
+          return Math.abs(userCtc - targetCtc) < 0.01;
+        }
+
+        // If both are selected
+        if (currentFilters.ctcMain && currentFilters.ctcAdditional) {
+          const mainCtc = parseFloat(currentFilters.ctcMain);
+          const additionalCtc = parseFloat(currentFilters.ctcAdditional) / 100;
+          const targetCtc = mainCtc + additionalCtc;
+          return Math.abs(userCtc - targetCtc) < 0.01;
+        }
+
+        return true;
       });
     }
 
@@ -309,6 +422,35 @@ const AdminPage = () => {
           default:
             return true;
         }
+      });
+    }
+
+    // Single date filter - using form created date
+    if (currentFilters.uploadDate) {
+      filtered = filtered.filter((user) => {
+        // Check what date fields are available for debugging
+        console.log("🔍 Date filter - User date fields:", {
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+          dateOfBirth: user.dateOfBirth,
+          _id: user._id
+        });
+
+        // Use createdAt as the primary field for form creation date
+        const userDate = new Date(user.createdAt);
+        const filterDate = new Date(currentFilters.uploadDate);
+
+        // If no createdAt date, skip this user (they won't match date filters)
+        if (!user.createdAt) {
+          console.log("🔍 Date filter - No createdAt date for user:", user._id);
+          return false;
+        }
+
+        // Compare dates (year, month, day only - ignore time)
+        const userDateOnly = new Date(userDate.getFullYear(), userDate.getMonth(), userDate.getDate());
+        const filterDateOnly = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate());
+
+        return userDateOnly.getTime() === filterDateOnly.getTime();
       });
     }
 
@@ -332,10 +474,13 @@ const AdminPage = () => {
       preferredCity: "",
       designation: "",
       department: "",
-      experienceRange: "",
-      ctcRange: "",
+      experienceMin: "",
+      experienceMax: "",
+      ctcMain: "",
+      ctcAdditional: "",
       companyName: "",
       ageRange: "",
+      uploadDate: "",
     };
     setFilters(emptyFilters);
     setFilteredUsers(users);
@@ -595,30 +740,62 @@ const AdminPage = () => {
               <option value="Female">Female</option>
               <option value="Other">Other</option>
             </select>
-            {/* Experience Range */}
+            {/* Experience Range - Min */}
             <select
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
-              value={filters.experienceRange}
-              onChange={(e) => handleFilterChange("experienceRange", e.target.value)}
+              value={filters.experienceMin}
+              onChange={(e) => handleFilterChange("experienceMin", e.target.value)}
             >
-              <option value="">Experience</option>
-              <option value="0-2">0-2 years</option>
-              <option value="3-5">3-5 years</option>
-              <option value="6-10">6-10 years</option>
-              <option value="10+">10+ years</option>
+              <option value="">Min Experience</option>
+              {Array.from({ length: 36 }, (_, i) => (
+                <option key={i} value={i}>
+                  {i === 35 ? "35+" : `${i} years`}
+                </option>
+              ))}
             </select>
-            {/* CTC Range */}
+            {/* Experience Range - Max */}
             <select
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
-              value={filters.ctcRange}
-              onChange={(e) => handleFilterChange("ctcRange", e.target.value)}
+              value={filters.experienceMax}
+              onChange={(e) => handleFilterChange("experienceMax", e.target.value)}
             >
-              <option value=""> CTC</option>
-              <option value="0-5">0-5 Lakhs</option>
-              <option value="5-10">5-10 Lakhs</option>
-              <option value="10-15">10-15 Lakhs</option>
-              <option value="15+">15+ Lakhs</option>
+              <option value="">Max Experience</option>
+              {Array.from({ length: 36 }, (_, i) => (
+                <option key={i} value={i}>
+                  {i === 35 ? "35+" : `${i} years`}
+                </option>
+              ))}
             </select>
+            {/* CTC Range - Two Dropdowns */}
+            <div className="col-span-1">
+              <label className="block text-xs text-gray-600 mb-1">CTC</label>
+              <div className="grid grid-cols-2 gap-1">
+                <select
+                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+                  value={filters.ctcMain || ""}
+                  onChange={(e) => handleFilterChange("ctcMain", e.target.value)}
+                >
+                  <option value="">Main CTC</option>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+                  value={filters.ctcAdditional || ""}
+                  onChange={(e) => handleFilterChange("ctcAdditional", e.target.value)}
+                >
+                  <option value="">Additional CTC</option>
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <option key={i} value={String(i).padStart(2, '0')}>
+                      {String(i).padStart(2, '0')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             {/* Age Range */}
             <select
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
@@ -672,20 +849,38 @@ const AdminPage = () => {
               onChange={(e) => handleFilterChange("designation", e.target.value)}
             />
             {/* Department */}
-            <input
-              type="text"
-              placeholder="Department"
+            <select
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.department}
               onChange={(e) => handleFilterChange("department", e.target.value)}
-            />
+            >
+              <option value="">Department</option>
+              {DEPARTMENT_OPTIONS.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
             {/* Company Name */}
-            <input
-              type="text"
-              placeholder="Company name"
+            <select
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.companyName}
               onChange={(e) => handleFilterChange("companyName", e.target.value)}
+            >
+              <option value="">Company Name</option>
+              {COMPANY_OPTIONS.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
+            </select>
+            {/* Upload Date */}
+            <input
+              type="date"
+              placeholder="Upload date"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+              value={filters.uploadDate}
+              onChange={(e) => handleFilterChange("uploadDate", e.target.value)}
             />
           </div>
           {/* Action Buttons */}
@@ -711,6 +906,9 @@ const AdminPage = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-[#1B2951]">
               <tr>
+                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Date
+                </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Personal Details
                 </th>
@@ -742,6 +940,14 @@ const AdminPage = () => {
                     index % 2 === 0 ? "bg-white" : "bg-gray-50"
                   }`}
                 >
+                  <td className="px-3 py-2">
+                    <div className="text-sm text-[#1B2951] font-medium">
+                      Uploaded By: {user.uploadedBy || "System"}
+                    </div>
+                    <div className="text-sm text-[#1B2951]">
+                      Date: {formatDate(user.createdAt)}
+                    </div>
+                  </td>
                   <td className="px-3 py-2">
                     <div className="text-sm font-medium text-[#1B2951]">
                       {`${user.firstName || ""} ${user.middleName || ""} ${

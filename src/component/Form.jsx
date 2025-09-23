@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
@@ -569,7 +570,8 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       department: "",
       customDepartment: "",
       ctcInLakhs: "",
-      totalExperience: "",
+      totalExperienceMin: "",
+      totalExperienceMax: "",
     },
   });
 
@@ -580,7 +582,6 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   const panNoValue = watch("panNo");
 
   const watchDepartment = watch("department");
-  const [ctcDisplay, setCtcDisplay] = useState("");
   const ctcValue = watch("ctcInLakhs");
 
   // Watch state values for city filtering
@@ -598,9 +599,7 @@ useEffect(() => {
     setValue("preferredCity", "");
   }
 }, [preferredStateValue, setValue]);
-  useEffect(() => {
-    setCtcDisplay(ctcValue || "");
-  }, [ctcValue]);
+
 
   // Effect to set the upload date automatically
   useEffect(() => {
@@ -621,13 +620,6 @@ useEffect(() => {
   // Fill form if editing
   useEffect(() => {
     if (initialData) {
-      console.log("🔍 Form.jsx: Received initialData for editing:", initialData);
-      console.log("🔍 Form.jsx: InitialData keys:", Object.keys(initialData));
-      console.log("🔍 Form.jsx: Checking for upload date fields:");
-      console.log("🔍 Form.jsx: dateOfUpload:", initialData.dateOfUpload);
-      console.log("🔍 Form.jsx: createdAt:", initialData.createdAt);
-      console.log("🔍 Form.jsx: uploadedAt:", initialData.uploadedAt);
-
       const updatedData = { ...initialData };
 
       // Handle date of birth conversion
@@ -778,6 +770,32 @@ useEffect(() => {
         "ctcInLakhs",
       ];
 
+      // Handle total experience range combination
+      if (data.totalExperienceMin !== undefined && data.totalExperienceMin !== "" &&
+          data.totalExperienceMax !== undefined && data.totalExperienceMax !== "") {
+        const minExp = parseInt(data.totalExperienceMin);
+        const maxExp = parseInt(data.totalExperienceMax);
+
+        if (minExp < maxExp) {
+          // Create range format like "2-5 years"
+          data.totalExperience = `${minExp}-${maxExp} years`;
+        } else if (minExp === maxExp) {
+          // Same value, just show single value
+          data.totalExperience = `${minExp} years`;
+        } else {
+          // Min is greater than max, swap them
+          data.totalExperience = `${maxExp}-${minExp} years`;
+        }
+      } else if (data.totalExperienceMin !== undefined && data.totalExperienceMin !== "") {
+        // Only min specified
+        const minExp = parseInt(data.totalExperienceMin);
+        data.totalExperience = `${minExp}+ years`;
+      } else if (data.totalExperienceMax !== undefined && data.totalExperienceMax !== "") {
+        // Only max specified
+        const maxExp = parseInt(data.totalExperienceMax);
+        data.totalExperience = `0-${maxExp} years`;
+      }
+
       // Fields that should NOT be sent to backend (system fields)
       const excludedFields = [
         "dobDay",
@@ -791,6 +809,8 @@ useEffect(() => {
         "__v",
         "permanentDetails",
         "comments",
+        "totalExperienceMin",
+        "totalExperienceMax",
       ];
 
       Object.keys(data).forEach((key) => {
@@ -1609,62 +1629,116 @@ useEffect(() => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    CTC (in Lakhs)
+                    CTC
                   </label>
-                  <Controller
-                    name="ctcInLakhs"
-                    control={control}
-                    render={({ field }) => (
-                      <input
-                        value={ctcDisplay}
-                        onChange={(e) => setCtcDisplay(e.target.value)}
-                        onBlur={() => {
-                          let value = ctcDisplay.replace(/[^0-9.]/g, "");
-                          const parts = value.split(".");
-                          if (parts.length > 2)
-                            value = parts[0] + "." + parts.slice(1).join("");
-                          parts[0] = parts[0].substring(0, 3); // Limit to 3 digits before decimal
-                          if (parts[1]) parts[1] = parts[1].substring(0, 2); // Limit to 2 digits after decimal
-                          value = parts[0] + (parts[1] ? "." + parts[1] : "");
-                          // Pad with zeros to make 000.00 format
-                          while (parts[0].length < 3) parts[0] = "0" + parts[0];
-                          value =
-                            parts[0] + (parts[1] ? "." + parts[1] : ".00");
-                          field.onChange(value);
-                        }}
-                        type="text"
-                        placeholder="000.00"
-                        className={inputClass}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Main CTC</label>
+                      <Controller
+                        name="ctcInLakhs"
+                        control={control}
+                        render={({ field }) => (
+                          <select
+                            {...field}
+                            className={selectClass}
+                            onChange={(e) => {
+                              const selectedValue = e.target.value;
+                              const currentDecimal = field.value ? field.value.split('.')[1] || '00' : '00';
+                              const newValue = selectedValue ? `${selectedValue}.${currentDecimal}` : '';
+                              field.onChange(newValue);
+                            }}
+                          >
+                            <option value="">Select</option>
+                            {Array.from({ length: 5 }, (_, i) => (
+                              <option key={i + 1} value={i + 1}>
+                                {i + 1}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       />
-                    )}
-                  />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Additional CTC</label>
+                      <Controller
+                        name="ctcInLakhs"
+                        control={control}
+                        render={({ field }) => (
+                          <select
+                            value={field.value ? field.value.split('.')[1] || '00' : '00'}
+                            className={selectClass}
+                            onChange={(e) => {
+                              const selectedDecimal = e.target.value;
+                              const currentInteger = field.value ? field.value.split('.')[0] || '0' : '0';
+                              const newValue = `${currentInteger}.${selectedDecimal}`;
+                              field.onChange(newValue);
+                            }}
+                          >
+                            <option value="00">0</option>
+                            {Array.from({ length: 10 }, (_, i) => (
+                              <option key={i + 1} value={String(i + 1).padStart(2, '0')}>
+                                {String(i + 1).padStart(2, '0')}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      />
+                    </div>
+                  </div>
+                  {ctcValue && (
+                    <div className="mt-2 text-sm text-gray-600">
+                      Total CTC: ₹{parseFloat(ctcValue).toFixed(2)}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Total Experience (Years) <span className="text-gray-500 font-normal">(Optional)</span>
                   </label>
-                  <Controller
-                    name="totalExperience"
-                    control={control}
-                    render={({ field }) => (
-                      <select
-                        value={field.value || ""}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        className="border rounded px-2 py-1 w-32"
-                      >
-                        <option value="">Select</option>
-                        {/* Show ranges like 0-1, 1-2, ..., 34-35, 35+ */}
-                        {Array.from({ length: 36 }, (_, i) => (
-                          <option
-                            key={i}
-                            value={i === 35 ? "35+" : `${i}-${i + 1}`}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Minimum</label>
+                      <Controller
+                        name="totalExperienceMin"
+                        control={control}
+                        render={({ field }) => (
+                          <select
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            className={selectClass}
                           >
-                            {i === 35 ? "35+ years" : `${i}-${i + 1} years`}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  />
+                            <option value="">Min</option>
+                            {Array.from({ length: 36 }, (_, i) => (
+                              <option key={i} value={i}>
+                                {i === 35 ? "35+" : `${i} years`}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Maximum</label>
+                      <Controller
+                        name="totalExperienceMax"
+                        control={control}
+                        render={({ field }) => (
+                          <select
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            className={selectClass}
+                          >
+                            <option value="">Max</option>
+                            {Array.from({ length: 36 }, (_, i) => (
+                              <option key={i} value={i}>
+                                {i === 35 ? "35+" : `${i} years`}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -10,9 +10,115 @@ import {
   LogOut,
   Plus,
   X,
+  RefreshCw,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import UserForm from "./Form";
+
+// Department options for filter dropdown - Predefined list of departments for consistent filtering
+const DEPARTMENT_OPTIONS = [
+  "Agency",
+  "Banca",
+  "Direct",
+  "Training",
+  "Operations / Back-office",
+  "Underwriting",
+  "NPS",
+  "Strategy",
+  "Product Development",
+  "Claims Management",
+  "Retension",
+  "Actuarial",
+  "Broking Channel",
+  "SME Agency",
+  "Defence",
+  "Reinsurance",
+  "Online/Digital Sales",
+  "Telly - VRM",
+  "Policy Servicing / Customer Service",
+  "Compliance & Legal",
+  "Risk Management",
+  "Regulatory compliance",
+  "Finance & Accounts",
+  "Investments / Fund Management",
+  "Human Resources (HR)",
+  "IT / Technology",
+  "Administration & Facilities",
+  "Marketing & Brand Management",
+  "Analytics & Business Intelligence",
+  "Partnership & Alliances Acquisition",
+  "Corportate Sales",
+  "OEM",
+  "Group Insurance",
+  "Other"
+];
+
+// Company options for filter dropdown
+const COMPANY_OPTIONS = [
+  // Life Insurance
+  "Acko Life Insurance Ltd",
+  "Aditya Birla Sun Life Insurance Co. Ltd",
+  "Ageas Federal Life Insurance Company Limited",
+  "Aviva Life Insurance Company India Limited",
+  "Bajaj Allianz Life Insurance Co. Ltd.",
+  "Bandhan Life Insurance (formerly Aegon Life)",
+  "Canara HSBC Life Insurance Company Limited",
+  "Edelweiss Life Insurance Company Limited",
+  "Future Generali India Life Insurance Company limited",
+  "Go Digit Life Insurance Limited",
+  "HDFC Life Insurance Co. Ltd",
+  "ICICI Prudential Life Insurance Co. Ltd",
+  "IndiaFirst Life Insurance Company Limited",
+  "Kotak Mahindra life Insurance Co. Ltd",
+  "Life Insurance Corporation of India",
+  "PNB MetLife India Insurance Company Limited",
+  "Reliance Nippon Life Insurance Company Limited",
+  "Sahara India Life Insurance Company Limited",
+  "SBI Life Insurance Co. Ltd",
+  "Shriram Life Insurance Company Limited",
+  "Star Union Dai-ichi Life Insurance Company Limited",
+  "TATA AIA Life Insurance Co. Ltd",
+  // General Insurance
+  "Acko General Insurance Ltd",
+  "Agriculture Insurance Company of India Limited",
+  "Bajaj Allianz General Insurance",
+  "Cholamandalam MS General Insurance Company Limited",
+  "ECGC Limited",
+  "Go Digit General Insurance Limited",
+  "HDFC ERGO General Insurance Company Limited",
+  "ICICI Lombard General Insurance",
+  "IFFCO TOKIO General Insurance Company Limited",
+  "Kotak Mahindra General Insurance",
+  "Liberty General Insurance Limited",
+  "Magma HDI General Insurance Company Limited",
+  "National Insurance Company Limited",
+  "Navi General Insurance Limited",
+  "New India Assurance",
+  "Raheja QBE General Insurance Co. Ltd.",
+  "Reliance General Insurance",
+  "Royal Sundaram General Insurance",
+  "SBI General Insurance",
+  "Shriram General Insurance",
+  "Tata AIG General Insurance",
+  "The Oriental Insurance Co",
+  "United India Insurance Co",
+  "Universal Sompo General Insurance",
+  "Zuno General Insurance (formerly Edelweiss)",
+  // Health Insurance
+  "Aditya Birla Health Insurance",
+  "Care Health Insurance",
+  "ManipalCigna Health Insurance",
+  "Niva Bupa Health Insurance",
+  "Star Health & Allied Insurance",
+  "Galaxy Health Insurance Company Limited",
+  "Narayana Health Insurance Ltd",
+  // Insurance Broker
+  "Marsh India Insurance Brokers",
+  "Mahindra Insurance Brokers Ltd",
+  "Policybazaar Insurance Brokers Pvt. Ltd",
+  "Howden Insurance Brokers India Pvt. Ltd",
+];
 
 const SubAdminPage = () => {
   const { logout } = useAuth();
@@ -25,22 +131,47 @@ const SubAdminPage = () => {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  // Comments modal states
+  const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
+  const [userComments, setUserComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsUserInfo, setCommentsUserInfo] = useState({});
+
   // Filter states
   const [filters, setFilters] = useState({
     search: "",
     gender: "",
     currentState: "",
     preferredState: "",
+    currentCity: "",
+    preferredCity: "",
     designation: "",
     department: "",
-    experienceRange: "",
-    ctcRange: "",
+    experienceMin: "",
+    experienceMax: "",
+    ctcMain: "",
+    ctcAdditional: "",
     companyName: "",
+    ageRange: "",
+    uploadDate: "",
   });
 
   // Handle logout
   const handleLogout = () => {
     logout();
+  };
+
+  // Helper to calculate age from DOB
+  const calculateAge = (dob) => {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
   };
 
   useEffect(() => {
@@ -77,106 +208,178 @@ const SubAdminPage = () => {
   const applyFilters = (userList, currentFilters) => {
     let filtered = [...userList];
 
-    // Search filter
+    // Search
     if (currentFilters.search) {
       const searchTerm = currentFilters.search.toLowerCase();
       filtered = filtered.filter(
         (user) =>
-          user.firstName?.toLowerCase().includes(searchTerm) ||
-          user.lastName?.toLowerCase().includes(searchTerm) ||
-          user.mailId?.toLowerCase().includes(searchTerm) ||
-          user.contactNo?.includes(searchTerm) ||
-          user.currentEmployer?.toLowerCase().includes(searchTerm) ||
-          user.designation?.toLowerCase().includes(searchTerm)
+          (user.firstName &&
+            user.firstName.toLowerCase().includes(searchTerm)) ||
+          (user.lastName && user.lastName.toLowerCase().includes(searchTerm)) ||
+          (user.mailId && user.mailId.toLowerCase().includes(searchTerm)) ||
+          (user.contactNo && user.contactNo.includes(searchTerm)) ||
+          (user.currentEmployer &&
+            user.currentEmployer.toLowerCase().includes(searchTerm)) ||
+          (user.designation &&
+            user.designation.toLowerCase().includes(searchTerm))
       );
     }
 
-    // Gender filter
+    // Gender
     if (currentFilters.gender) {
       filtered = filtered.filter(
         (user) => user.gender === currentFilters.gender
       );
     }
 
-    // State filters
+    // Current/Preferred state
     if (currentFilters.currentState) {
-      filtered = filtered.filter((user) =>
-        user.currentState
-          ?.toLowerCase()
-          .includes(currentFilters.currentState.toLowerCase())
+      filtered = filtered.filter(
+        (user) =>
+          user.currentState &&
+          user.currentState
+            .toLowerCase()
+            .includes(currentFilters.currentState.toLowerCase())
       );
     }
-
     if (currentFilters.preferredState) {
-      filtered = filtered.filter((user) =>
-        user.preferredState
-          ?.toLowerCase()
-          .includes(currentFilters.preferredState.toLowerCase())
+      filtered = filtered.filter(
+        (user) =>
+          user.preferredState &&
+          user.preferredState
+            .toLowerCase()
+            .includes(currentFilters.preferredState.toLowerCase())
       );
     }
 
-    // Designation filter
+    // Current/Preferred city
+    if (currentFilters.currentCity) {
+      filtered = filtered.filter(
+        (user) =>
+          user.currentCity &&
+          user.currentCity
+            .toLowerCase()
+            .includes(currentFilters.currentCity.toLowerCase())
+      );
+    }
+    if (currentFilters.preferredCity) {
+      filtered = filtered.filter(
+        (user) =>
+          user.preferredCity &&
+          user.preferredCity
+            .toLowerCase()
+            .includes(currentFilters.preferredCity.toLowerCase())
+      );
+    }
+
+    // Designation/Department
     if (currentFilters.designation) {
-      filtered = filtered.filter((user) =>
-        user.designation
-          ?.toLowerCase()
-          .includes(currentFilters.designation.toLowerCase())
+      filtered = filtered.filter(
+        (user) =>
+          user.designation &&
+          user.designation
+            .toLowerCase()
+            .includes(currentFilters.designation.toLowerCase())
       );
     }
-
-    // Department filter
     if (currentFilters.department) {
-      filtered = filtered.filter((user) =>
-        user.department
-          ?.toLowerCase()
-          .includes(currentFilters.department.toLowerCase())
+      filtered = filtered.filter(
+        (user) =>
+          user.department &&
+          user.department
+            .toLowerCase()
+            .includes(currentFilters.department.toLowerCase())
       );
     }
 
     // Company Name filter
     if (currentFilters.companyName) {
-      filtered = filtered.filter((user) =>
-        user.currentEmployer
-          ?.toLowerCase()
-          .includes(currentFilters.companyName.toLowerCase())
+      filtered = filtered.filter(
+        (user) =>
+          user.currentEmployer &&
+          user.currentEmployer
+            .toLowerCase()
+            .includes(currentFilters.companyName.toLowerCase())
       );
     }
 
-    // Experience range filter
-    if (currentFilters.experienceRange) {
+    // Experience Range
+    if (currentFilters.experienceMin || currentFilters.experienceMax) {
       filtered = filtered.filter((user) => {
         const exp = parseFloat(user.totalExperience) || 0;
-        switch (currentFilters.experienceRange) {
-          case "0-2":
-            return exp >= 0 && exp <= 2;
-          case "3-5":
-            return exp >= 3 && exp <= 5;
-          case "6-10":
-            return exp >= 6 && exp <= 10;
-          case "10+":
-            return exp > 10;
+        const minExp = currentFilters.experienceMin ? parseFloat(currentFilters.experienceMin) : 0;
+        const maxExp = currentFilters.experienceMax ? parseFloat(currentFilters.experienceMax) : Infinity;
+
+        return exp >= minExp && exp <= maxExp;
+      });
+    }
+
+    // CTC - Two dropdown filter
+    if (currentFilters.ctcMain || currentFilters.ctcAdditional) {
+      filtered = filtered.filter((user) => {
+        const userCtc = parseFloat(user.ctcInLakhs) || 0;
+
+        // If only main CTC is selected
+        if (currentFilters.ctcMain && !currentFilters.ctcAdditional) {
+          const mainCtc = parseFloat(currentFilters.ctcMain);
+          return userCtc >= mainCtc && userCtc < (mainCtc + 1);
+        }
+
+        // If only additional CTC is selected
+        if (!currentFilters.ctcMain && currentFilters.ctcAdditional) {
+          const additionalCtc = parseFloat(currentFilters.ctcAdditional) / 100;
+          const targetCtc = Math.floor(userCtc) + additionalCtc;
+          return Math.abs(userCtc - targetCtc) < 0.01;
+        }
+
+        // If both are selected
+        if (currentFilters.ctcMain && currentFilters.ctcAdditional) {
+          const mainCtc = parseFloat(currentFilters.ctcMain);
+          const additionalCtc = parseFloat(currentFilters.ctcAdditional) / 100;
+          const targetCtc = mainCtc + additionalCtc;
+          return Math.abs(userCtc - targetCtc) < 0.01;
+        }
+
+        return true;
+      });
+    }
+
+    // Age filter
+    if (currentFilters.ageRange) {
+      filtered = filtered.filter((user) => {
+        const age = calculateAge(user.dateOfBirth);
+        switch (currentFilters.ageRange) {
+          case "20-30":
+            return age >= 20 && age <= 30;
+          case "31-40":
+            return age >= 31 && age <= 40;
+          case "41-50":
+            return age >= 41 && age <= 50;
+          case "51-60":
+            return age >= 51 && age <= 60;
           default:
             return true;
         }
       });
     }
 
-    // CTC range filter
-    if (currentFilters.ctcRange) {
+    // Single date filter - using form created date
+    if (currentFilters.uploadDate) {
       filtered = filtered.filter((user) => {
-        const ctc = parseFloat(user.ctcInLakhs) || 0;
-        switch (currentFilters.ctcRange) {
-          case "0-5":
-            return ctc >= 0 && ctc <= 5;
-          case "5-10":
-            return ctc > 5 && ctc <= 10;
-          case "10-15":
-            return ctc > 10 && ctc <= 15;
-          case "15+":
-            return ctc > 15;
-          default:
-            return true;
+        // Use createdAt as the primary field for form creation date
+        const userDate = new Date(user.createdAt);
+        const filterDate = new Date(currentFilters.uploadDate);
+
+        // If no createdAt date, skip this user (they won't match date filters)
+        if (!user.createdAt) {
+          return false;
         }
+
+        // Compare dates (year, month, day only - ignore time)
+        const userDateOnly = new Date(userDate.getFullYear(), userDate.getMonth(), userDate.getDate());
+        const filterDateOnly = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate());
+
+        return userDateOnly.getTime() === filterDateOnly.getTime();
       });
     }
 
@@ -198,11 +401,17 @@ const SubAdminPage = () => {
       gender: "",
       currentState: "",
       preferredState: "",
+      currentCity: "",
+      preferredCity: "",
       designation: "",
       department: "",
-      experienceRange: "",
-      ctcRange: "",
+      experienceMin: "",
+      experienceMax: "",
+      ctcMain: "",
+      ctcAdditional: "",
       companyName: "",
+      ageRange: "",
+      uploadDate: "",
     };
     setFilters(emptyFilters);
     setFilteredUsers(users);
@@ -213,6 +422,39 @@ const SubAdminPage = () => {
   const handleFormSuccess = () => {
     setIsAddModalOpen(false);
     fetchUsers(); // Refresh the data
+  };
+
+  // Fetch comments for a specific user
+  const fetchUserComments = async (userId) => {
+    try {
+      setCommentsLoading(true);
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/comments`
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUserComments(data.data.comments || []);
+        setCommentsUserInfo({
+          userName: data.data.userName,
+          userId: data.data.userId,
+          totalComments: data.data.totalComments,
+        });
+        setIsCommentsModalOpen(true);
+      } else {
+        throw new Error(data.message || "Failed to fetch comments");
+      }
+    } catch (err) {
+      console.error("Error fetching comments:", err);
+      alert("Error loading comments: " + err.message);
+    } finally {
+      setCommentsLoading(false);
+    }
   };
 
   // Format date for display
@@ -332,123 +574,187 @@ const SubAdminPage = () => {
           </div>
         </div>
         {/* Filters */}
-        <div className="p-3 border-b border-gray-200 bg-gray-50">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="p-2 sm:p-3 border-b border-gray-200 bg-gray-50">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
             {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-2 top-3 h-3 w-3 text-gray-500" />
+            <div className="relative col-span-1">
+              <Search className="absolute left-2 top-2.5 sm:top-3 h-3 w-3 text-gray-500" />
               <input
                 type="text"
                 placeholder="Search name, email, phone..."
-                className="pl-7 pr-2 py-1.5 border border-gray-300 rounded text-sm w-full focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+                className="pl-7 pr-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm w-full focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
                 value={filters.search}
                 onChange={(e) => handleFilterChange("search", e.target.value)}
               />
             </div>
-
             {/* Gender */}
             <select
-              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.gender}
               onChange={(e) => handleFilterChange("gender", e.target.value)}
             >
-              <option value="">All Genders</option>
+              <option value="">Gender</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
               <option value="Other">Other</option>
             </select>
-
+            {/* Experience Range - Min */}
+            <select
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+              value={filters.experienceMin}
+              onChange={(e) => handleFilterChange("experienceMin", e.target.value)}
+            >
+              <option value="">Min Experience</option>
+              {Array.from({ length: 36 }, (_, i) => (
+                <option key={i} value={i}>
+                  {i === 35 ? "35+" : `${i} years`}
+                </option>
+              ))}
+            </select>
+            {/* Experience Range - Max */}
+            <select
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+              value={filters.experienceMax}
+              onChange={(e) => handleFilterChange("experienceMax", e.target.value)}
+            >
+              <option value="">Max Experience</option>
+              {Array.from({ length: 36 }, (_, i) => (
+                <option key={i} value={i}>
+                  {i === 35 ? "35+" : `${i} years`}
+                </option>
+              ))}
+            </select>
+            {/* CTC Range - Two Dropdowns */}
+            <div className="col-span-1">
+              <label className="block text-xs text-gray-600 mb-1">CTC</label>
+              <div className="grid grid-cols-2 gap-1">
+                <select
+                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+                  value={filters.ctcMain || ""}
+                  onChange={(e) => handleFilterChange("ctcMain", e.target.value)}
+                >
+                  <option value="">Main CTC</option>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+                  value={filters.ctcAdditional || ""}
+                  onChange={(e) => handleFilterChange("ctcAdditional", e.target.value)}
+                >
+                  <option value="">Additional CTC</option>
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <option key={i} value={String(i).padStart(2, '0')}>
+                      {String(i).padStart(2, '0')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {/* Age Range */}
+            <select
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+              value={filters.ageRange}
+              onChange={(e) => handleFilterChange("ageRange", e.target.value)}
+            >
+              <option value=""> Ages</option>
+              <option value="20-30">20-30 years</option>
+              <option value="31-40">31-40 years</option>
+              <option value="41-50">41-50 years</option>
+              <option value="51-60">51-60 years</option>
+            </select>
             {/* Current State */}
             <input
               type="text"
               placeholder="Current state"
-              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.currentState}
-              onChange={(e) =>
-                handleFilterChange("currentState", e.target.value)
-              }
+              onChange={(e) => handleFilterChange("currentState", e.target.value)}
             />
-
             {/* Preferred State */}
             <input
               type="text"
               placeholder="Preferred state"
-              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.preferredState}
-              onChange={(e) =>
-                handleFilterChange("preferredState", e.target.value)
-              }
+              onChange={(e) => handleFilterChange("preferredState", e.target.value)}
             />
-
+            {/* Current City */}
+            <input
+              type="text"
+              placeholder="Current city"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+              value={filters.currentCity}
+              onChange={(e) => handleFilterChange("currentCity", e.target.value)}
+            />
+            {/* Preferred City */}
+            <input
+              type="text"
+              placeholder="Preferred city"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+              value={filters.preferredCity}
+              onChange={(e) => handleFilterChange("preferredCity", e.target.value)}
+            />
             {/* Designation */}
             <input
               type="text"
               placeholder="Designation"
-              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.designation}
-              onChange={(e) =>
-                handleFilterChange("designation", e.target.value)
-              }
+              onChange={(e) => handleFilterChange("designation", e.target.value)}
             />
-
             {/* Department */}
-            <input
-              type="text"
-              placeholder="Department"
-              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+            <select
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.department}
               onChange={(e) => handleFilterChange("department", e.target.value)}
-            />
-
+            >
+              <option value="">Department</option>
+              {DEPARTMENT_OPTIONS.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
             {/* Company Name */}
-            <input
-              type="text"
-              placeholder="Company name"
-              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+            <select
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.companyName}
               onChange={(e) => handleFilterChange("companyName", e.target.value)}
+            >
+              <option value="">Company Name</option>
+              {COMPANY_OPTIONS.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
+            </select>
+            {/* Upload Date */}
+            <input
+              type="date"
+              placeholder="Upload date"
+              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+              value={filters.uploadDate}
+              onChange={(e) => handleFilterChange("uploadDate", e.target.value)}
             />
-
-            {/* Experience Range */}
-            <select
-              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
-              value={filters.experienceRange}
-              onChange={(e) =>
-                handleFilterChange("experienceRange", e.target.value)
-              }
-            >
-              <option value="">All Experience</option>
-              <option value="0-2">0-2 years</option>
-              <option value="3-5">3-5 years</option>
-              <option value="6-10">6-10 years</option>
-              <option value="10+">10+ years</option>
-            </select>
-
-            {/* CTC Range */}
-            <select
-              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
-              value={filters.ctcRange}
-              onChange={(e) => handleFilterChange("ctcRange", e.target.value)}
-            >
-              <option value="">All CTC</option>
-              <option value="0-5">0-5 Lakhs</option>
-              <option value="5-10">5-10 Lakhs</option>
-              <option value="10-15">10-15 Lakhs</option>
-              <option value="15+">15+ Lakhs</option>
-            </select>
           </div>
 
-          <div className="mt-2 flex justify-between items-center">
+          {/* Action Buttons */}
+          <div className="mt-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <button
               onClick={clearFilters}
-              className="px-3 py-1.5 text-[#1B2951] hover:text-[#B99D54] hover:bg-gray-100 rounded text-sm transition-colors"
+              className="px-3 py-2 sm:py-1.5 text-[#1B2951] hover:text-[#B99D54] hover:bg-gray-100 rounded text-sm transition-colors w-full sm:w-auto"
             >
               Clear Filters
             </button>
             <button
-              onClick={clearFilters}
-              className="px-3 py-1.5 bg-[#1B2951] text-white rounded text-sm hover:bg-[#1B2951]/90 transition-colors"
+              onClick={fetchUsers}
+              className="px-3 py-2 sm:py-1.5 bg-[#1B2951] text-white rounded text-sm hover:bg-[#1B2951]/90 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
             >
+              <RefreshCw className="h-3 w-3" />
               Refresh Data
             </button>
           </div>
@@ -485,7 +791,7 @@ const SubAdminPage = () => {
             <tbody className="bg-white divide-y divide-gray-100">
               {currentUsers.map((user, index) => (
                 <tr
-                  key={user.id || `user-${index}`}
+                  key={user._id || `user-${index}`}
                   className={`hover:bg-gray-50 ${
                     index % 2 === 0 ? "bg-white" : "bg-gray-50"
                   }`}
@@ -565,18 +871,27 @@ const SubAdminPage = () => {
                     </div>
                   </td>
                   <td className="px-3 py-2">
-                    <span className="">
-                      <ul className="list-disc pl-4">
+                    <div className="flex flex-col items-start">
+                      <ul className="list-disc pl-4 mb-2">
                         {[user.comment1, user.comment2, user.comment3].map(
                           (comment, idx) =>
                             comment && (
                               <li key={idx} className="text-sm text-[#1B2951]">
-                                {comment}
+                                {comment.length > 50
+                                  ? `${comment.substring(0, 50)}...`
+                                  : comment}
                               </li>
                             )
                         )}
                       </ul>
-                    </span>
+                      <button
+                        onClick={() => fetchUserComments(user._id)}
+                        className="text-xs text-[#1B2951] hover:text-[#B99D54] flex items-center gap-1"
+                      >
+                        <Eye size={12} />
+                        View All Comments
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -671,6 +986,84 @@ const SubAdminPage = () => {
                 onClose={() => setIsAddModalOpen(false)}
                 onSuccess={handleFormSuccess}
               />
+            </div>
+          </div>
+        )}
+
+        {/* Comments Modal */}
+        {isCommentsModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto relative">
+              <div className="sticky top-0 bg-[#1B2951] text-white p-4 rounded-t-lg flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-semibold">User Comments</h2>
+                  <p className="text-sm text-[#B99D54]">
+                    {commentsUserInfo.userName} (
+                    {commentsUserInfo.totalComments || 0} comments)
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsCommentsModalOpen(false);
+                    setUserComments([]);
+                    setCommentsUserInfo({});
+                  }}
+                  className="text-white hover:text-gray-200"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-4">
+                {commentsLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B2951]"></div>
+                    <span className="ml-2 text-[#1B2951]">
+                      Loading comments...
+                    </span>
+                  </div>
+                ) : userComments.length > 0 ? (
+                  <div className="space-y-4">
+                    {userComments.map((comment, index) => (
+                      <div
+                        key={comment._id || index}
+                        className="border-b border-gray-200 pb-4 last:border-b-0"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-[#B99D54]/20 rounded-full">
+                            <MessageSquare className="h-5 w-5 text-[#1B2951]" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm text-gray-700">
+                              {comment.text}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              By:{" "}
+                              <span className="font-medium">
+                                {comment.addedBy}
+                              </span>
+                              {comment.date && (
+                                <>
+                                  {" "}
+                                  &middot;{" "}
+                                  {new Date(comment.date).toLocaleString()}
+                                </>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500">
+                      No comments found for this user.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

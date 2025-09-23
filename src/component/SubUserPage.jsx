@@ -5,8 +5,114 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  MessageSquare,
+  X,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+
+// Department options for filter dropdown
+const DEPARTMENT_OPTIONS = [
+  "Agency",
+  "Banca",
+  "Direct",
+  "Training",
+  "Operations / Back-office",
+  "Underwriting",
+  "NPS",
+  "Strategy",
+  "Product Development",
+  "Claims Management",
+  "Retension",
+  "Actuarial",
+  "Broking Channel",
+  "SME Agency",
+  "Defence",
+  "Reinsurance",
+  "Online/Digital Sales",
+  "Telly - VRM",
+  "Policy Servicing / Customer Service",
+  "Compliance & Legal",
+  "Risk Management",
+  "Regulatory compliance",
+  "Finance & Accounts",
+  "Investments / Fund Management",
+  "Human Resources (HR)",
+  "IT / Technology",
+  "Administration & Facilities",
+  "Marketing & Brand Management",
+  "Analytics & Business Intelligence",
+  "Partnership & Alliances Acquisition",
+  "Corportate Sales",
+  "OEM",
+  "Group Insurance",
+  "Other"
+];
+
+// Company options for filter dropdown
+const COMPANY_OPTIONS = [
+  // Life Insurance
+  "Acko Life Insurance Ltd",
+  "Aditya Birla Sun Life Insurance Co. Ltd",
+  "Ageas Federal Life Insurance Company Limited",
+  "Aviva Life Insurance Company India Limited",
+  "Bajaj Allianz Life Insurance Co. Ltd.",
+  "Bandhan Life Insurance (formerly Aegon Life)",
+  "Canara HSBC Life Insurance Company Limited",
+  "Edelweiss Life Insurance Company Limited",
+  "Future Generali India Life Insurance Company limited",
+  "Go Digit Life Insurance Limited",
+  "HDFC Life Insurance Co. Ltd",
+  "ICICI Prudential Life Insurance Co. Ltd",
+  "IndiaFirst Life Insurance Company Limited",
+  "Kotak Mahindra life Insurance Co. Ltd",
+  "Life Insurance Corporation of India",
+  "PNB MetLife India Insurance Company Limited",
+  "Reliance Nippon Life Insurance Company Limited",
+  "Sahara India Life Insurance Company Limited",
+  "SBI Life Insurance Co. Ltd",
+  "Shriram Life Insurance Company Limited",
+  "Star Union Dai-ichi Life Insurance Company Limited",
+  "TATA AIA Life Insurance Co. Ltd",
+  // General Insurance
+  "Acko General Insurance Ltd",
+  "Agriculture Insurance Company of India Limited",
+  "Bajaj Allianz General Insurance",
+  "Cholamandalam MS General Insurance Company Limited",
+  "ECGC Limited",
+  "Go Digit General Insurance Limited",
+  "HDFC ERGO General Insurance Company Limited",
+  "ICICI Lombard General Insurance",
+  "IFFCO TOKIO General Insurance Company Limited",
+  "Kotak Mahindra General Insurance",
+  "Liberty General Insurance Limited",
+  "Magma HDI General Insurance Company Limited",
+  "National Insurance Company Limited",
+  "Navi General Insurance Limited",
+  "New India Assurance",
+  "Raheja QBE General Insurance Co. Ltd.",
+  "Reliance General Insurance",
+  "Royal Sundaram General Insurance",
+  "SBI General Insurance",
+  "Shriram General Insurance",
+  "Tata AIG General Insurance",
+  "The Oriental Insurance Co",
+  "United India Insurance Co",
+  "Universal Sompo General Insurance",
+  "Zuno General Insurance (formerly Edelweiss)",
+  // Health Insurance
+  "Aditya Birla Health Insurance",
+  "Care Health Insurance",
+  "ManipalCigna Health Insurance",
+  "Niva Bupa Health Insurance",
+  "Star Health & Allied Insurance",
+  "Galaxy Health Insurance Company Limited",
+  "Narayana Health Insurance Ltd",
+  // Insurance Broker
+  "Marsh India Insurance Brokers",
+  "Mahindra Insurance Brokers Ltd",
+  "Policybazaar Insurance Brokers Pvt. Ltd",
+  "Howden Insurance Brokers India Pvt. Ltd",
+];
 
 const SubUserPage = () => {
   const { logout } = useAuth();
@@ -23,12 +129,24 @@ const SubUserPage = () => {
     gender: "",
     currentState: "",
     preferredState: "",
+    currentCity: "",
+    preferredCity: "",
     designation: "",
     department: "",
-    experienceRange: "",
-    ctcRange: "",
+    experienceMin: "",
+    experienceMax: "",
+    ctcMain: "",
+    ctcAdditional: "",
     companyName: "",
+    ageRange: "",
+    uploadDate: "",
   });
+
+  // Comments modal states
+  const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
+  const [userComments, setUserComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsUserInfo, setCommentsUserInfo] = useState({});
 
   // Handle logout
   const handleLogout = () => {
@@ -63,6 +181,21 @@ const SubUserPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Calculate age from date of birth
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return null;
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    return age;
   };
 
   // Apply filters
@@ -107,6 +240,23 @@ const SubUserPage = () => {
       );
     }
 
+    // City filters
+    if (currentFilters.currentCity) {
+      filtered = filtered.filter((user) =>
+        user.currentCity
+          ?.toLowerCase()
+          .includes(currentFilters.currentCity.toLowerCase())
+      );
+    }
+
+    if (currentFilters.preferredCity) {
+      filtered = filtered.filter((user) =>
+        user.preferredCity
+          ?.toLowerCase()
+          .includes(currentFilters.preferredCity.toLowerCase())
+      );
+    }
+
     // Designation filter
     if (currentFilters.designation) {
       filtered = filtered.filter((user) =>
@@ -134,41 +284,80 @@ const SubUserPage = () => {
       );
     }
 
-    // Experience range filter
-    if (currentFilters.experienceRange) {
+    // Experience range filters
+    if (currentFilters.experienceMin) {
+      const minExp = parseFloat(currentFilters.experienceMin);
+      if (!isNaN(minExp)) {
+        filtered = filtered.filter((user) => {
+          const exp = parseFloat(user.totalExperience) || 0;
+          return exp >= minExp;
+        });
+      }
+    }
+
+    if (currentFilters.experienceMax) {
+      const maxExp = parseFloat(currentFilters.experienceMax);
+      if (!isNaN(maxExp)) {
+        filtered = filtered.filter((user) => {
+          const exp = parseFloat(user.totalExperience) || 0;
+          return exp <= maxExp;
+        });
+      }
+    }
+
+    // CTC range filters
+    if (currentFilters.ctcMain) {
+      const minCTC = parseFloat(currentFilters.ctcMain);
+      if (!isNaN(minCTC)) {
+        filtered = filtered.filter((user) => {
+          const ctc = parseFloat(user.ctcInLakhs) || 0;
+          return ctc >= minCTC;
+        });
+      }
+    }
+
+    if (currentFilters.ctcAdditional) {
+      const maxCTC = parseFloat(currentFilters.ctcAdditional);
+      if (!isNaN(maxCTC)) {
+        filtered = filtered.filter((user) => {
+          const ctc = parseFloat(user.ctcInLakhs) || 0;
+          return ctc <= maxCTC;
+        });
+      }
+    }
+
+    // Age range filter
+    if (currentFilters.ageRange) {
       filtered = filtered.filter((user) => {
-        const exp = parseFloat(user.totalExperience) || 0;
-        switch (currentFilters.experienceRange) {
-          case "0-2":
-            return exp >= 0 && exp <= 2;
-          case "3-5":
-            return exp >= 3 && exp <= 5;
-          case "6-10":
-            return exp >= 6 && exp <= 10;
-          case "10+":
-            return exp > 10;
+        const age = calculateAge(user.dateOfBirth);
+        if (age === null) return false;
+
+        switch (currentFilters.ageRange) {
+          case "18-25":
+            return age >= 18 && age <= 25;
+          case "26-35":
+            return age >= 26 && age <= 35;
+          case "36-45":
+            return age >= 36 && age <= 45;
+          case "46-55":
+            return age >= 46 && age <= 55;
+          case "55+":
+            return age > 55;
           default:
             return true;
         }
       });
     }
 
-    // CTC range filter
-    if (currentFilters.ctcRange) {
+    // Upload date filter
+    if (currentFilters.uploadDate) {
       filtered = filtered.filter((user) => {
-        const ctc = parseFloat(user.ctcInLakhs) || 0;
-        switch (currentFilters.ctcRange) {
-          case "0-5":
-            return ctc >= 0 && ctc <= 5;
-          case "5-10":
-            return ctc > 5 && ctc <= 10;
-          case "10-15":
-            return ctc > 10 && ctc <= 15;
-          case "15+":
-            return ctc > 15;
-          default:
-            return true;
-        }
+        if (!user.dateOfUpload) return false;
+        const uploadDate = new Date(user.dateOfUpload);
+        const filterDate = new Date(currentFilters.uploadDate);
+
+        // Compare dates (ignoring time)
+        return uploadDate.toDateString() === filterDate.toDateString();
       });
     }
 
@@ -190,15 +379,60 @@ const SubUserPage = () => {
       gender: "",
       currentState: "",
       preferredState: "",
+      currentCity: "",
+      preferredCity: "",
       designation: "",
       department: "",
-      experienceRange: "",
-      ctcRange: "",
+      experienceMin: "",
+      experienceMax: "",
+      ctcMain: "",
+      ctcAdditional: "",
       companyName: "",
+      ageRange: "",
+      uploadDate: "",
     };
     setFilters(emptyFilters);
     setFilteredUsers(users);
     setCurrentPage(1);
+  };
+
+  // Fetch user comments function
+  const fetchUserComments = async (userId) => {
+    try {
+      setCommentsLoading(true);
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/comments`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch comments');
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        setUserComments(result.data.comments || []);
+        setCommentsUserInfo({
+          userName: result.data.userName,
+          userId: result.data.userId,
+          totalComments: result.data.totalComments,
+        });
+        setIsCommentsModalOpen(true);
+      } else {
+        throw new Error(result.message || "Failed to fetch comments");
+      }
+    } catch (error) {
+      console.error('Comments fetch error:', error);
+      alert('Failed to fetch comments: ' + error.message);
+    } finally {
+      setCommentsLoading(false);
+    }
   };
 
   // Download resume function
@@ -363,7 +597,7 @@ const SubUserPage = () => {
               value={filters.gender}
               onChange={(e) => handleFilterChange("gender", e.target.value)}
             >
-              <option value="">All Genders</option>
+              <option value="">Genders</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
               <option value="Other">Other</option>
@@ -391,6 +625,28 @@ const SubUserPage = () => {
               }
             />
 
+            {/* Current City */}
+            <input
+              type="text"
+              placeholder="Current city"
+              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              value={filters.currentCity}
+              onChange={(e) =>
+                handleFilterChange("currentCity", e.target.value)
+              }
+            />
+
+            {/* Preferred City */}
+            <input
+              type="text"
+              placeholder="Preferred city"
+              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              value={filters.preferredCity}
+              onChange={(e) =>
+                handleFilterChange("preferredCity", e.target.value)
+              }
+            />
+
             {/* Designation */}
             <input
               type="text"
@@ -403,50 +659,115 @@ const SubUserPage = () => {
             />
 
             {/* Department */}
-            <input
-              type="text"
-              placeholder="Department"
+            <select
               className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
               value={filters.department}
               onChange={(e) => handleFilterChange("department", e.target.value)}
-            />
+            >
+              <option value="">All Departments</option>
+              {DEPARTMENT_OPTIONS.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
 
             {/* Company Name */}
-            <input
-              type="text"
-              placeholder="Company name"
+            <select
               className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
               value={filters.companyName}
               onChange={(e) => handleFilterChange("companyName", e.target.value)}
-            />
+            >
+              <option value="">All Companies</option>
+              {COMPANY_OPTIONS.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
+            </select>
 
-            {/* Experience Range */}
+            {/* Experience Range - Min */}
             <select
               className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
-              value={filters.experienceRange}
+              value={filters.experienceMin}
+              onChange={(e) => handleFilterChange("experienceMin", e.target.value)}
+            >
+              <option value="">Min Experience</option>
+              {Array.from({ length: 36 }, (_, i) => (
+                <option key={i} value={i}>
+                  {i === 35 ? "35+" : `${i} years`}
+                </option>
+              ))}
+            </select>
+
+            {/* Experience Range - Max */}
+            <select
+              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              value={filters.experienceMax}
+              onChange={(e) => handleFilterChange("experienceMax", e.target.value)}
+            >
+              <option value="">Max Experience</option>
+              {Array.from({ length: 36 }, (_, i) => (
+                <option key={i} value={i}>
+                  {i === 35 ? "35+" : `${i} years`}
+                </option>
+              ))}
+            </select>
+
+            {/* CTC Range - Two Dropdowns */}
+            <div className="col-span-1">
+              <label className="block text-xs text-gray-600 mb-1">CTC</label>
+              <div className="grid grid-cols-2 gap-1">
+                <select
+                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+                  value={filters.ctcMain || ""}
+                  onChange={(e) => handleFilterChange("ctcMain", e.target.value)}
+                >
+                  <option value="">Min CTC</option>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+                  value={filters.ctcAdditional || ""}
+                  onChange={(e) => handleFilterChange("ctcAdditional", e.target.value)}
+                >
+                  <option value="">Max CTC</option>
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <option key={i} value={String(i).padStart(2, '0')}>
+                      {String(i).padStart(2, '0')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Age Range */}
+            <select
+              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              value={filters.ageRange}
+              onChange={(e) => handleFilterChange("ageRange", e.target.value)}
+            >
+              <option value="">All Ages</option>
+              <option value="18-25">18-25 years</option>
+              <option value="26-35">26-35 years</option>
+              <option value="36-45">36-45 years</option>
+              <option value="46-55">46-55 years</option>
+              <option value="55+">55+ years</option>
+            </select>
+
+            {/* Upload Date */}
+            <input
+              type="date"
+              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
+              value={filters.uploadDate}
               onChange={(e) =>
-                handleFilterChange("experienceRange", e.target.value)
+                handleFilterChange("uploadDate", e.target.value)
               }
-            >
-              <option value="">All Experience</option>
-              <option value="0-2">0-2 years</option>
-              <option value="3-5">3-5 years</option>
-              <option value="6-10">6-10 years</option>
-              <option value="10+">10+ years</option>
-            </select>
-
-            {/* CTC Range */}
-            <select
-              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951]"
-              value={filters.ctcRange}
-              onChange={(e) => handleFilterChange("ctcRange", e.target.value)}
-            >
-              <option value="">All CTC</option>
-              <option value="0-5">0-5 Lakhs</option>
-              <option value="5-10">5-10 Lakhs</option>
-              <option value="10-15">10-15 Lakhs</option>
-              <option value="15+">15+ Lakhs</option>
-            </select>
+            />
           </div>
 
           <div className="mt-2 flex justify-between items-center">
@@ -523,7 +844,7 @@ const SubUserPage = () => {
                       DOB: {formatDate(user.dateOfBirth)}
                     </div>
                     <div className="text-sm text-[#1B2951] font-medium">
-                      Father's name: {user.fatherName}
+                      Father&apos;s name: {user.fatherName}
                     </div>
                     <div className="text-sm text-[#1B2951] font-medium">
                       PAN no: {user.panNo}
@@ -579,18 +900,15 @@ const SubUserPage = () => {
                     </div>
                   </td>
                   <td className="px-3 py-2">
-                    <span className="">
-                      <ul className="list-disc pl-4">
-                        {[user.comment1, user.comment2, user.comment3].map(
-                          (comment, idx) =>
-                            comment && (
-                              <li key={idx} className="text-sm text-[#1B2951]">
-                                {comment}
-                              </li>
-                            )
-                        )}
-                      </ul>
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => fetchUserComments(user._id || user.id)}
+                        className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                        title="View Comments"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                      </button>
+                    </div>
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1">
@@ -680,6 +998,73 @@ const SubUserPage = () => {
           </div>
         )}
       </div>
+
+      {/* Comments Modal */}
+      {isCommentsModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold text-[#1B2951]">
+                  User Comments
+                </h3>
+                <p className="text-sm text-[#B99D54]">
+                  {commentsUserInfo.userName} ({commentsUserInfo.totalComments || 0} comments)
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setIsCommentsModalOpen(false);
+                  setUserComments([]);
+                  setCommentsUserInfo({});
+                }}
+                className="p-1 hover:bg-gray-100 rounded transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="px-6 py-4">
+              {commentsLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#1B2951]"></div>
+                </div>
+              ) : userComments.length > 0 ? (
+                <div className="space-y-4">
+                  {userComments.map((comment, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-sm font-medium text-[#1B2951]">
+                          {comment.commentedBy || 'Anonymous'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatDate(comment.createdAt)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {comment.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 text-sm">No comments available for this user.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setIsCommentsModalOpen(false)}
+                className="px-4 py-2 bg-[#1B2951] text-white rounded text-sm hover:bg-[#1B2951]/90 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
