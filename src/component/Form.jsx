@@ -623,6 +623,10 @@ useEffect(() => {
     if (initialData) {
       console.log("🔍 Form.jsx: Received initialData for editing:", initialData);
       console.log("🔍 Form.jsx: InitialData keys:", Object.keys(initialData));
+      console.log("🔍 Form.jsx: Checking for upload date fields:");
+      console.log("🔍 Form.jsx: dateOfUpload:", initialData.dateOfUpload);
+      console.log("🔍 Form.jsx: createdAt:", initialData.createdAt);
+      console.log("🔍 Form.jsx: uploadedAt:", initialData.uploadedAt);
 
       const updatedData = { ...initialData };
 
@@ -638,11 +642,26 @@ useEffect(() => {
 
       // Handle upload date mapping - check various possible field names
       if (initialData.dateOfUpload) {
-        updatedData.uploadDate = initialData.dateOfUpload;
+        // Format date for HTML date input (YYYY-MM-DD)
+        if (initialData.dateOfUpload.includes('T')) {
+          updatedData.uploadDate = initialData.dateOfUpload.split('T')[0];
+        } else {
+          updatedData.uploadDate = initialData.dateOfUpload;
+        }
       } else if (initialData.createdAt) {
-        updatedData.uploadDate = initialData.createdAt;
+        // Format date for HTML date input (YYYY-MM-DD)
+        if (initialData.createdAt.includes('T')) {
+          updatedData.uploadDate = initialData.createdAt.split('T')[0];
+        } else {
+          updatedData.uploadDate = initialData.createdAt;
+        }
       } else if (initialData.uploadedAt) {
-        updatedData.uploadDate = initialData.uploadedAt;
+        // Format date for HTML date input (YYYY-MM-DD)
+        if (initialData.uploadedAt.includes('T')) {
+          updatedData.uploadDate = initialData.uploadedAt.split('T')[0];
+        } else {
+          updatedData.uploadDate = initialData.uploadedAt;
+        }
       }
 
       console.log("🔍 Form.jsx: Updated data being passed to reset:", updatedData);
