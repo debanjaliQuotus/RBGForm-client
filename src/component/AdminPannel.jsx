@@ -7,6 +7,7 @@ import {
   updateSubUser,
   deleteSubAdmin,
   deleteSubUser,
+  createUser,
 } from "../api/adminApi";
 
 const AdminPanel = () => {
@@ -16,6 +17,8 @@ const AdminPanel = () => {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', role: 'sub-admin' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -86,6 +89,24 @@ const AdminPanel = () => {
     }
   };
 
+  const handleCloseCreateModal = () => {
+    setIsCreateModalOpen(false);
+    setCreateForm({ name: '', email: '', password: '', role: 'sub-admin' });
+  };
+
+  const handleCreateSubmit = async () => {
+    try {
+      await createUser(createForm);
+      setIsCreateModalOpen(false);
+      setCreateForm({ name: '', email: '', password: '', role: 'sub-admin' });
+      fetchData();
+      alert('User created successfully!');
+    } catch (error) {
+      console.error('Error creating user:', error);
+      alert('Error creating user: ' + error.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-[#f8f6f0]">
@@ -114,9 +135,18 @@ const AdminPanel = () => {
   return (
     <div className="min-h-screen bg-[#f8f6f0] p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#1a2a52] mb-2">Admin Panel</h1>
-          <p className="text-gray-600">Manage sub-admins and sub-users in your system</p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-[#1a2a52] mb-2">Admin Panel</h1>
+            <p className="text-gray-600">Manage sub-admins and sub-users in your system</p>
+          </div>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="px-4 py-2 bg-[#bfa75a] text-white rounded-lg hover:bg-[#a89548] transition-colors flex items-center"
+          >
+            <Users size={16} className="mr-2" />
+            Create User
+          </button>
         </div>
 
         {/* Stats Overview */}
@@ -311,6 +341,85 @@ const AdminPanel = () => {
                   className="px-4 py-2 bg-[#1a2a52] text-white rounded-lg hover:bg-[#2a3a72] focus:outline-none focus:ring-2 focus:ring-[#1a2a52] transition-colors"
                 >
                   Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md">
+            <div className="bg-[#bfa75a] text-white p-4 rounded-t-xl flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Create User</h3>
+              <button onClick={handleCloseCreateModal} className="text-white hover:text-gray-200">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-[#1a2a52] mb-2">Name</label>
+                <input
+                  type="text"
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#bfa75a] focus:border-transparent"
+                  placeholder="Enter name"
+                />
+              </div>
+
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-[#1a2a52] mb-2">Email Address</label>
+                <input
+                  type="email"
+                  value={createForm.email}
+                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#bfa75a] focus:border-transparent"
+                  placeholder="Enter email address"
+                />
+              </div>
+
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-[#1a2a52] mb-2">Password</label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#bfa75a] focus:border-transparent pr-10"
+                    placeholder="Enter password"
+                  />
+                  <Key className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-[#1a2a52] mb-2">Role</label>
+                <select
+                  value={createForm.role}
+                  onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#bfa75a] focus:border-transparent"
+                >
+                  <option value="sub-admin">Sub-Admin</option>
+                  <option value="sub-user">Sub-User</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleCloseCreateModal}
+                  className="px-4 py-2 text-[#1a2a52] bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateSubmit}
+                  className="px-4 py-2 bg-[#1a2a52] text-white rounded-lg hover:bg-[#2a3a72] focus:outline-none focus:ring-2 focus:ring-[#1a2a52] transition-colors"
+                >
+                  Create User
                 </button>
               </div>
             </div>

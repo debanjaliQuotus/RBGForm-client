@@ -1,25 +1,20 @@
-# SubUser Component Implementation
-
-## Plan Summary:
-Create a SubUser component where sub-users can only view all users and download their resumes.
+# TODO: Add Create User Functionality to Admin Panel
 
 ## Steps to Complete:
 
-### 1. Create SubUserPage.jsx Component
-- [ ] Create new SubUserPage.jsx component based on SubAdminPage structure
-- [ ] Remove add/edit functionality (read-only access)
-- [ ] Add download resume functionality using backend endpoint
-- [ ] Keep search, filter, and pagination functionality
+1. **Add `createUser` function to `adminApi.js`**
+   - Add a new API function that makes a POST request to `/admin/create-user` with the user data.
 
-### 2. Update App.jsx
-- [ ] Add new route for `/sub-user` path
-- [ ] Protect route with `requiredRoles={['sub-user']}`
+2. **Add create user form to `AdminPannel.jsx`**
+   - Add a new section with a form for name, email, password, and role.
+   - Add state variables for form inputs.
+   - Add a submit handler that calls the API and refreshes the data.
 
-### 3. Update AuthProvider.jsx
-- [ ] Add handling for 'sub-user' role in role-based routing
-- [ ] Navigate to `/sub-user` when role is 'sub-user'
+3. **Test the functionality**
+   - Run the app and test the create user form.
+   - Ensure it integrates with the existing UI.
 
-### 4. Test Implementation
-- [ ] Verify component renders correctly
-- [ ] Test download functionality
-- [ ] Check role-based access control
+## Completed:
+- [x] Add `createUser` function to `adminApi.js`
+- [ ] Add create user form to `AdminPannel.jsx`
+- [ ] Test the functionality
