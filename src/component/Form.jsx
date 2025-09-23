@@ -1080,9 +1080,9 @@ useEffect(() => {
                              {" "}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Date of Birth */}
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* Date of Birth - Takes 3 columns */}
+                <div className="md:col-span-3">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Date of Birth
                   </label>
@@ -1145,8 +1145,8 @@ useEffect(() => {
                   </div>
                   {renderError("dateOfBirth")}
                 </div>
-                {/* Gender */}
-                <div>
+                {/* Gender - Takes 1 column */}
+                <div className="md:col-span-1">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Gender
                   </label>
