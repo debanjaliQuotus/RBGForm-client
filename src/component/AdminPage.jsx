@@ -588,7 +588,7 @@ const AdminPage = () => {
               value={filters.gender}
               onChange={(e) => handleFilterChange("gender", e.target.value)}
             >
-              <option value="">All Genders</option>
+              <option value="">Gender</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
               <option value="Other">Other</option>
@@ -599,7 +599,7 @@ const AdminPage = () => {
               value={filters.experienceRange}
               onChange={(e) => handleFilterChange("experienceRange", e.target.value)}
             >
-              <option value="">All Experience</option>
+              <option value="">Experience</option>
               <option value="0-2">0-2 years</option>
               <option value="3-5">3-5 years</option>
               <option value="6-10">6-10 years</option>
@@ -611,7 +611,7 @@ const AdminPage = () => {
               value={filters.ctcRange}
               onChange={(e) => handleFilterChange("ctcRange", e.target.value)}
             >
-              <option value="">All CTC</option>
+              <option value=""> CTC</option>
               <option value="0-5">0-5 Lakhs</option>
               <option value="5-10">5-10 Lakhs</option>
               <option value="10-15">10-15 Lakhs</option>
@@ -623,7 +623,7 @@ const AdminPage = () => {
               value={filters.ageRange}
               onChange={(e) => handleFilterChange("ageRange", e.target.value)}
             >
-              <option value="">All Ages</option>
+              <option value=""> Ages</option>
               <option value="20-30">20-30 years</option>
               <option value="31-40">31-40 years</option>
               <option value="41-50">41-50 years</option>
