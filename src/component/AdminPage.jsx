@@ -53,7 +53,7 @@ const DEPARTMENT_OPTIONS = [
   "Corportate Sales",
   "OEM",
   "Group Insurance",
-  "Other"
+  "Other",
 ];
 
 // Company options for filter dropdown
@@ -191,23 +191,23 @@ const AdminPage = () => {
       setUsers(usersArray);
       setFilteredUsers(usersArray);
 
-    setFilters({
-      search: "",
-      gender: "",
-      currentState: "",
-      preferredState: "",
-      currentCity: "",
-      preferredCity: "",
-      designation: "",
-      department: "",
-      experienceMin: "",
-      experienceMax: "",
-      ctcMain: "",
-      ctcAdditional: "",
-      companyName: "",
-      ageRange: "",
-      uploadDate: "",
-    });
+      setFilters({
+        search: "",
+        gender: "",
+        currentState: "",
+        preferredState: "",
+        currentCity: "",
+        preferredCity: "",
+        designation: "",
+        department: "",
+        experienceMin: "",
+        experienceMax: "",
+        ctcMain: "",
+        ctcAdditional: "",
+        companyName: "",
+        ageRange: "",
+        uploadDate: "",
+      });
     } catch (err) {
       console.error("Fetch error:", err);
       setError("Error fetching user data: " + err.message);
@@ -369,8 +369,12 @@ const AdminPage = () => {
     if (currentFilters.experienceMin || currentFilters.experienceMax) {
       filtered = filtered.filter((user) => {
         const exp = parseFloat(user.totalExperience) || 0;
-        const minExp = currentFilters.experienceMin ? parseFloat(currentFilters.experienceMin) : 0;
-        const maxExp = currentFilters.experienceMax ? parseFloat(currentFilters.experienceMax) : Infinity;
+        const minExp = currentFilters.experienceMin
+          ? parseFloat(currentFilters.experienceMin)
+          : 0;
+        const maxExp = currentFilters.experienceMax
+          ? parseFloat(currentFilters.experienceMax)
+          : Infinity;
 
         return exp >= minExp && exp <= maxExp;
       });
@@ -384,7 +388,7 @@ const AdminPage = () => {
         // If only main CTC is selected
         if (currentFilters.ctcMain && !currentFilters.ctcAdditional) {
           const mainCtc = parseFloat(currentFilters.ctcMain);
-          return userCtc >= mainCtc && userCtc < (mainCtc + 1);
+          return userCtc >= mainCtc && userCtc < mainCtc + 1;
         }
 
         // If only additional CTC is selected
@@ -433,7 +437,7 @@ const AdminPage = () => {
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
           dateOfBirth: user.dateOfBirth,
-          _id: user._id
+          _id: user._id,
         });
 
         // Use createdAt as the primary field for form creation date
@@ -447,8 +451,16 @@ const AdminPage = () => {
         }
 
         // Compare dates (year, month, day only - ignore time)
-        const userDateOnly = new Date(userDate.getFullYear(), userDate.getMonth(), userDate.getDate());
-        const filterDateOnly = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate());
+        const userDateOnly = new Date(
+          userDate.getFullYear(),
+          userDate.getMonth(),
+          userDate.getDate()
+        );
+        const filterDateOnly = new Date(
+          filterDate.getFullYear(),
+          filterDate.getMonth(),
+          filterDate.getDate()
+        );
 
         return userDateOnly.getTime() === filterDateOnly.getTime();
       });
@@ -601,7 +613,10 @@ const AdminPage = () => {
   const handleEditClick = (user) => {
     console.log("🔍 AdminPage.jsx: Edit user data:", user);
     console.log("🔍 AdminPage.jsx: User data keys:", Object.keys(user));
-    console.log("🔍 AdminPage.jsx: User data structure:", JSON.stringify(user, null, 2));
+    console.log(
+      "🔍 AdminPage.jsx: User data structure:",
+      JSON.stringify(user, null, 2)
+    );
     setSelectedUser(user);
     setIsEditModalOpen(true);
   };
@@ -744,7 +759,9 @@ const AdminPage = () => {
             <select
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.experienceMin}
-              onChange={(e) => handleFilterChange("experienceMin", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("experienceMin", e.target.value)
+              }
             >
               <option value="">Min Experience</option>
               {Array.from({ length: 36 }, (_, i) => (
@@ -757,7 +774,9 @@ const AdminPage = () => {
             <select
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.experienceMax}
-              onChange={(e) => handleFilterChange("experienceMax", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("experienceMax", e.target.value)
+              }
             >
               <option value="">Max Experience</option>
               {Array.from({ length: 36 }, (_, i) => (
@@ -773,10 +792,12 @@ const AdminPage = () => {
                 <select
                   className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
                   value={filters.ctcMain || ""}
-                  onChange={(e) => handleFilterChange("ctcMain", e.target.value)}
+                  onChange={(e) =>
+                    handleFilterChange("ctcMain", e.target.value)
+                  }
                 >
-                  <option value="">Main CTC</option>
-                  {Array.from({ length: 5 }, (_, i) => (
+                  <option value="">Select</option>
+                  {Array.from({ length: 100 }, (_, i) => (
                     <option key={i + 1} value={i + 1}>
                       {i + 1}
                     </option>
@@ -785,12 +806,14 @@ const AdminPage = () => {
                 <select
                   className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
                   value={filters.ctcAdditional || ""}
-                  onChange={(e) => handleFilterChange("ctcAdditional", e.target.value)}
+                  onChange={(e) =>
+                    handleFilterChange("ctcAdditional", e.target.value)
+                  }
                 >
-                  <option value="">CTC</option>
-                  {Array.from({ length: 10 }, (_, i) => (
-                    <option key={i} value={String(i).padStart(2, '0')}>
-                      {String(i).padStart(2, '0')}
+                  <option value="">Select</option>
+                  {Array.from({ length: 100 }, (_, i) => (
+                    <option key={i} value={String(i).padStart(2, "0")}>
+                      {String(i).padStart(2, "0")}
                     </option>
                   ))}
                 </select>
@@ -814,7 +837,9 @@ const AdminPage = () => {
               placeholder="Current state"
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.currentState}
-              onChange={(e) => handleFilterChange("currentState", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("currentState", e.target.value)
+              }
             />
             {/* Preferred State */}
             <input
@@ -822,7 +847,9 @@ const AdminPage = () => {
               placeholder="Preferred state"
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.preferredState}
-              onChange={(e) => handleFilterChange("preferredState", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("preferredState", e.target.value)
+              }
             />
             {/* Current City */}
             <input
@@ -830,7 +857,9 @@ const AdminPage = () => {
               placeholder="Current city"
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.currentCity}
-              onChange={(e) => handleFilterChange("currentCity", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("currentCity", e.target.value)
+              }
             />
             {/* Preferred City */}
             <input
@@ -838,7 +867,9 @@ const AdminPage = () => {
               placeholder="Preferred city"
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.preferredCity}
-              onChange={(e) => handleFilterChange("preferredCity", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("preferredCity", e.target.value)
+              }
             />
             {/* Designation */}
             <input
@@ -846,7 +877,9 @@ const AdminPage = () => {
               placeholder="Designation"
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.designation}
-              onChange={(e) => handleFilterChange("designation", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("designation", e.target.value)
+              }
             />
             {/* Department */}
             <select
@@ -865,7 +898,9 @@ const AdminPage = () => {
             <select
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.companyName}
-              onChange={(e) => handleFilterChange("companyName", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("companyName", e.target.value)
+              }
             >
               <option value="">Company Name</option>
               {COMPANY_OPTIONS.map((company) => (
@@ -959,7 +994,7 @@ const AdminPage = () => {
                       DOB: {formatDate(user.dateOfBirth)}
                     </div>
                     <div className="text-sm text-[#1B2951] font-medium">
-                      Father's name: {user.fatherName}
+                      Father&apos;s name: {user.fatherName}
                     </div>
                     <div className="text-sm text-[#1B2951] font-medium">
                       PAN no: {user.panNo}
@@ -1047,7 +1082,12 @@ const AdminPage = () => {
                         <Edit className="h-3 w-3" />
                       </button>
                       <button
-                        onClick={() => handleDownloadResume(user._id || user.id, `${user.firstName}_${user.lastName}_resume.pdf`)}
+                        onClick={() =>
+                          handleDownloadResume(
+                            user._id || user.id,
+                            `${user.firstName}_${user.lastName}_resume.pdf`
+                          )
+                        }
                         className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
                         title="Download Resume"
                       >
@@ -1136,7 +1176,7 @@ const AdminPage = () => {
       {/* Add User Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 overflow-hidden">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[85vh] overflow-y-auto p-4 relative mx-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[85vh] overflow-y-auto p-4 relative mx-4">
             <button
               onClick={() => setIsAddModalOpen(false)}
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 z-10"
@@ -1156,7 +1196,7 @@ const AdminPage = () => {
       {/* Edit User Modal */}
       {isEditModalOpen && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 overflow-hidden">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[85vh] overflow-y-auto p-4 relative mx-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-6xl max-h-[85vh] overflow-y-auto p-4 relative mx-4">
             <button
               onClick={() => {
                 setIsEditModalOpen(false);
@@ -1182,7 +1222,7 @@ const AdminPage = () => {
       {/* Comments Modal */}
       {isCommentsModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto relative">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[80vh] overflow-y-auto relative">
             <div className="sticky top-0 bg-[#1B2951] text-white p-4 rounded-t-lg flex justify-between items-center">
               <div>
                 <h2 className="text-lg font-semibold">User Comments</h2>

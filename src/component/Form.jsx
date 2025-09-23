@@ -1633,7 +1633,7 @@ useEffect(() => {
                   </label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Main CTC</label>
+                      
                       <Controller
                         name="ctcInLakhs"
                         control={control}
@@ -1649,7 +1649,7 @@ useEffect(() => {
                             }}
                           >
                             <option value="">Select</option>
-                            {Array.from({ length: 5 }, (_, i) => (
+                            {Array.from({ length: 100 }, (_, i) => (
                               <option key={i + 1} value={i + 1}>
                                 {i + 1}
                               </option>
@@ -1659,7 +1659,7 @@ useEffect(() => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Additional CTC</label>
+                    
                       <Controller
                         name="ctcInLakhs"
                         control={control}
@@ -1675,7 +1675,7 @@ useEffect(() => {
                             }}
                           >
                             <option value="00">0</option>
-                            {Array.from({ length: 10 }, (_, i) => (
+                            {Array.from({ length: 100 }, (_, i) => (
                               <option key={i + 1} value={String(i + 1).padStart(2, '0')}>
                                 {String(i + 1).padStart(2, '0')}
                               </option>
@@ -1693,11 +1693,11 @@ useEffect(() => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Total Experience (Years) <span className="text-gray-500 font-normal">(Optional)</span>
+                    Total Experience (Years)
                   </label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Minimum</label>
+                     
                       <Controller
                         name="totalExperienceMin"
                         control={control}
@@ -1718,7 +1718,7 @@ useEffect(() => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Maximum</label>
+                   
                       <Controller
                         name="totalExperienceMax"
                         control={control}

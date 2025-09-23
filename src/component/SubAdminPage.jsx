@@ -633,8 +633,8 @@ const SubAdminPage = () => {
                   value={filters.ctcMain || ""}
                   onChange={(e) => handleFilterChange("ctcMain", e.target.value)}
                 >
-                  <option value="">Main CTC</option>
-                  {Array.from({ length: 5 }, (_, i) => (
+                  <option value="">Select</option>
+                  {Array.from({ length: 100 }, (_, i) => (
                     <option key={i + 1} value={i + 1}>
                       {i + 1}
                     </option>
@@ -645,8 +645,8 @@ const SubAdminPage = () => {
                   value={filters.ctcAdditional || ""}
                   onChange={(e) => handleFilterChange("ctcAdditional", e.target.value)}
                 >
-                  <option value=""> CTC</option>
-                  {Array.from({ length: 10 }, (_, i) => (
+                  <option value="">Select</option>
+                  {Array.from({ length: 100 }, (_, i) => (
                     <option key={i} value={String(i).padStart(2, '0')}>
                       {String(i).padStart(2, '0')}
                     </option>
@@ -815,7 +815,7 @@ const SubAdminPage = () => {
                       DOB: {formatDate(user.dateOfBirth)}
                     </div>
                     <div className="text-sm text-[#1B2951] font-medium">
-                      Father's name: {user.fatherName}
+                      Father&apos;s name: {user.fatherName}
                     </div>
                     <div className="text-sm text-[#1B2951] font-medium">
                       PAN no: {user.panNo}
@@ -973,7 +973,7 @@ const SubAdminPage = () => {
         {/* Add User Modal */}
         {isAddModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[95vh] overflow-y-auto p-4 relative">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-5xl max-h-[95vh] overflow-y-auto p-4 relative">
               <button
                 onClick={() => setIsAddModalOpen(false)}
                 className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
@@ -993,7 +993,7 @@ const SubAdminPage = () => {
         {/* Comments Modal */}
         {isCommentsModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto relative">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[80vh] overflow-y-auto relative">
               <div className="sticky top-0 bg-[#1B2951] text-white p-4 rounded-t-lg flex justify-between items-center">
                 <div>
                   <h2 className="text-lg font-semibold">User Comments</h2>
