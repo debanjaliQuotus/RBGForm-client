@@ -918,10 +918,10 @@ useEffect(() => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Personal Information Section */}
           <div className="bg-white shadow-sm border border-gray-200">
-            <div className="px-6 py-2" style={{ backgroundColor: "#B99D54" }}>
+            <div className="px-6 py-3" style={{ backgroundColor: "#B99D54" }}>
               <h2 className="text-xl font-semibold text-white flex items-center">
                 <svg
                   className="w-5 h-5 mr-2"
@@ -937,7 +937,7 @@ useEffect(() => {
                 Personal Information
               </h2>
             </div>
-            <div className="p-8 space-y-3">
+            <div className="p-6 space-y-3">
               {/* Uploaded By and Upload Date */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -1171,7 +1171,7 @@ useEffect(() => {
 
           {/* Contact Information Section */}
           <div className="bg-white shadow-sm border border-gray-200">
-            <div className="px-6 py-2" style={{ backgroundColor: "#B99D54" }}>
+            <div className="px-6 py-3" style={{ backgroundColor: "#B99D54" }}>
               <h2 className="text-xl font-semibold text-white flex items-center">
                 <svg
                   className="w-5 h-5 mr-2"
@@ -1183,7 +1183,7 @@ useEffect(() => {
                 Contact Information
               </h2>
             </div>
-            <div className="p-8 space-y-4">
+            <div className="p-6 space-y-4">
               {/* Contact Numbers */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                {" "}
@@ -1291,116 +1291,121 @@ useEffect(() => {
                 </div>
               </div>
 
-              {/* Current Location */}
+              {/* Location Section */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-700 mb-4 pt-2">
-                  Current Location
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Current Location */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      State
-                    </label>
-                    <Controller
-                      name="currentState"
-                      control={control}
-                      render={({ field }) => (
-                        <DebouncedAutoComplete
-                          {...field}
-                          placeholder="Select current state"
-                          apiType="states"
-                          className={inputClass}
+                    <h3 className="text-lg font-semibold text-gray-700 mb-4 pt-2">
+                      Current Location
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          State
+                        </label>
+                        <Controller
+                          name="currentState"
+                          control={control}
+                          render={({ field }) => (
+                            <DebouncedAutoComplete
+                              {...field}
+                              placeholder="Select current state"
+                              apiType="states"
+                              className={inputClass}
+                            />
+                          )}
                         />
-                      )}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      City
-                    </label>
-                    <Controller
-                      name="currentCity"
-                      control={control}
-                      render={({ field }) => (
-                        <DebouncedAutoComplete
-                          {...field}
-                          placeholder={
-                            currentStateValue
-                              ? "Select current city"
-                              : "Select state first"
-                          }
-                          apiType="cities"
-                          className={inputClass}
-                          stateCode={
-                            STATE_CODE_MAPPING[currentStateValue] || null
-                          }
-                          // Debug logging
-                          onFocus={() => {
-                            const stateCode = STATE_CODE_MAPPING[currentStateValue] || null;
-                            console.log(`🔍 Current State: "${currentStateValue}", StateCode: "${stateCode}"`);
-                            console.log(`🔍 STATE_CODE_MAPPING["${currentStateValue}"] = "${stateCode}"`);
-                          }}
-                          disabled={!currentStateValue}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          City
+                        </label>
+                        <Controller
+                          name="currentCity"
+                          control={control}
+                          render={({ field }) => (
+                            <DebouncedAutoComplete
+                              {...field}
+                              placeholder={
+                                currentStateValue
+                                  ? "Select current city"
+                                  : "Select state first"
+                              }
+                              apiType="cities"
+                              className={inputClass}
+                              stateCode={
+                                STATE_CODE_MAPPING[currentStateValue] || null
+                              }
+                              // Debug logging
+                              onFocus={() => {
+                                const stateCode = STATE_CODE_MAPPING[currentStateValue] || null;
+                                console.log(`🔍 Current State: "${currentStateValue}", StateCode: "${stateCode}"`);
+                                console.log(`🔍 STATE_CODE_MAPPING["${currentStateValue}"] = "${stateCode}"`);
+                              }}
+                              disabled={!currentStateValue}
+                            />
+                          )}
                         />
-                      )}
-                    />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Preferred Location */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-700 mb-10 pt-2">
-                  Preferred Location
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Preferred Location */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      State
-                    </label>
-                    <Controller
-                      name="preferredState"
-                      control={control}
-                      render={({ field }) => (
-                        <DebouncedAutoComplete
-                          {...field}
-                          placeholder="Select preferred state"
-                          apiType="states"
-                          className={inputClass}
+                    <h3 className="text-lg font-semibold text-gray-700 mb-4 pt-2">
+                      Preferred Location
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          State
+                        </label>
+                        <Controller
+                          name="preferredState"
+                          control={control}
+                          render={({ field }) => (
+                            <DebouncedAutoComplete
+                              {...field}
+                              placeholder="Select preferred state"
+                              apiType="states"
+                              className={inputClass}
+                            />
+                          )}
                         />
-                      )}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      City
-                    </label>
-                    <Controller
-                      name="preferredCity"
-                      control={control}
-                      render={({ field }) => (
-                        <DebouncedAutoComplete
-                          {...field}
-                          placeholder={
-                            preferredStateValue
-                              ? "Select preferred city"
-                              : "Select state first"
-                          }
-                          apiType="cities"
-                          className={inputClass}
-                          stateCode={
-                            STATE_CODE_MAPPING[preferredStateValue] || null
-                          }
-                          // Debug logging
-                          onFocus={() => {
-                            const stateCode = STATE_CODE_MAPPING[preferredStateValue] || null;
-                            console.log(`🔍 Preferred State: "${preferredStateValue}", StateCode: "${stateCode}"`);
-                            console.log(`🔍 STATE_CODE_MAPPING["${preferredStateValue}"] = "${stateCode}"`);
-                          }}
-                          disabled={!preferredStateValue}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          City
+                        </label>
+                        <Controller
+                          name="preferredCity"
+                          control={control}
+                          render={({ field }) => (
+                            <DebouncedAutoComplete
+                              {...field}
+                              placeholder={
+                                preferredStateValue
+                                  ? "Select preferred city"
+                                  : "Select state first"
+                              }
+                              apiType="cities"
+                              className={inputClass}
+                              stateCode={
+                                STATE_CODE_MAPPING[preferredStateValue] || null
+                              }
+                              // Debug logging
+                              onFocus={() => {
+                                const stateCode = STATE_CODE_MAPPING[preferredStateValue] || null;
+                                console.log(`🔍 Preferred State: "${preferredStateValue}", StateCode: "${stateCode}"`);
+                                console.log(`🔍 STATE_CODE_MAPPING["${preferredStateValue}"] = "${stateCode}"`);
+                              }}
+                              disabled={!preferredStateValue}
+                            />
+                          )}
                         />
-                      )}
-                    />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

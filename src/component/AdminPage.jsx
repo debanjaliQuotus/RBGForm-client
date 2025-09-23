@@ -883,11 +883,11 @@ const AdminPage = () => {
 
       {/* Add User Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[95vh] overflow-y-auto p-4 relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 overflow-hidden">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[85vh] overflow-y-auto p-4 relative mx-4">
             <button
               onClick={() => setIsAddModalOpen(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 z-10"
             >
               <X className="h-5 w-5" />
             </button>
@@ -903,14 +903,14 @@ const AdminPage = () => {
 
       {/* Edit User Modal */}
       {isEditModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[95vh] overflow-y-auto p-4 relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 overflow-hidden">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[85vh] overflow-y-auto p-4 relative mx-4">
             <button
               onClick={() => {
                 setIsEditModalOpen(false);
                 setSelectedUser(null);
               }}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 z-10"
             >
               <X className="h-5 w-5" />
             </button>
