@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
@@ -160,7 +159,7 @@ const STATE_CODE_MAPPING = {
 
 // Local cities database as fallback for problematic states
 const LOCAL_CITIES = {
-  "Odisha": [
+  Odisha: [
     "Bhubaneswar",
     "Cuttack",
     "Rourkela",
@@ -190,9 +189,9 @@ const LOCAL_CITIES = {
     "Malkangiri",
     "Nabarangpur",
     "Subarnapur",
-    "Koraput"
+    "Koraput",
   ],
-  "Karnataka": [
+  Karnataka: [
     "Bangalore",
     "Bengaluru",
     "Mysore",
@@ -236,8 +235,8 @@ const LOCAL_CITIES = {
     "Chikballapur",
     "Ramanagara",
     "Kodagu",
-    "Madikeri"
-  ]
+    "Madikeri",
+  ],
 };
 
 // API endpoints for fetching location data
@@ -260,19 +259,23 @@ const LOCATION_APIS = {
   // Cities (GeoDB API via RapidAPI) - now filtered by state with local fallback
   cities: async (query, stateCode = null) => {
     if (!query) return [];
-    console.log(`🏙️ Cities API called with query: "${query}", stateCode: "${stateCode}"`);
+    console.log(
+      `🏙️ Cities API called with query: "${query}", stateCode: "${stateCode}"`
+    );
     try {
       // Check if we have local cities for this state (fallback for problematic states)
-      const stateName = Object.keys(LOCAL_CITIES).find(state =>
-        STATE_CODE_MAPPING[state] === stateCode
+      const stateName = Object.keys(LOCAL_CITIES).find(
+        (state) => STATE_CODE_MAPPING[state] === stateCode
       );
 
       if (stateName && LOCAL_CITIES[stateName]) {
-        console.log(`🏠 Using local cities for ${stateName} (stateCode: ${stateCode})`);
-        const localCities = LOCAL_CITIES[stateName].filter(city =>
+        console.log(
+          `🏠 Using local cities for ${stateName} (stateCode: ${stateCode})`
+        );
+        const localCities = LOCAL_CITIES[stateName].filter((city) =>
           city.toLowerCase().includes(query.toLowerCase())
         );
-        await new Promise(resolve => setTimeout(resolve, 100)); // Simulate API delay
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Simulate API delay
         return localCities.slice(0, 10);
       }
 
@@ -282,7 +285,9 @@ const LOCATION_APIS = {
       // Add state filter if state is selected
       if (stateCode) {
         url += `&stateCode=${stateCode}`;
-        console.log(`🔍 Cities API: Filtering by stateCode=${stateCode}, URL: ${url}`);
+        console.log(
+          `🔍 Cities API: Filtering by stateCode=${stateCode}, URL: ${url}`
+        );
       } else {
         console.log(`🔍 Cities API: No state filter, URL: ${url}`);
       }
@@ -330,18 +335,25 @@ const LOCATION_APIS = {
 
       // Additional validation: if we have a state code, ensure cities actually belong to that state
       if (stateCode && stateName) {
-        console.log(`🔍 Validating ${cities.length} cities for ${stateName}...`);
-        const validatedCities = cities.filter(city => {
+        console.log(
+          `🔍 Validating ${cities.length} cities for ${stateName}...`
+        );
+        const validatedCities = cities.filter((city) => {
           const cityLower = city.toLowerCase();
-          const stateCities = LOCAL_CITIES[stateName].map(c => c.toLowerCase());
+          const stateCities = LOCAL_CITIES[stateName].map((c) =>
+            c.toLowerCase()
+          );
 
           // Check if city exists in our local database for this state
-          const isValidCity = stateCities.some(localCity =>
-            cityLower.includes(localCity) || localCity.includes(cityLower)
+          const isValidCity = stateCities.some(
+            (localCity) =>
+              cityLower.includes(localCity) || localCity.includes(cityLower)
           );
 
           if (!isValidCity) {
-            console.warn(`⚠️ City "${city}" doesn't belong to ${stateName}, filtering out`);
+            console.warn(
+              `⚠️ City "${city}" doesn't belong to ${stateName}, filtering out`
+            );
           }
 
           return isValidCity;
@@ -357,13 +369,15 @@ const LOCATION_APIS = {
       console.error("❌ Cities API failed:", err.message);
 
       // Fallback to local cities if API fails and we have local data
-      const stateName = Object.keys(LOCAL_CITIES).find(state =>
-        STATE_CODE_MAPPING[state] === stateCode
+      const stateName = Object.keys(LOCAL_CITIES).find(
+        (state) => STATE_CODE_MAPPING[state] === stateCode
       );
 
       if (stateName && LOCAL_CITIES[stateName]) {
-        console.log(`🔄 API failed, falling back to local cities for ${stateName}`);
-        const localCities = LOCAL_CITIES[stateName].filter(city =>
+        console.log(
+          `🔄 API failed, falling back to local cities for ${stateName}`
+        );
+        const localCities = LOCAL_CITIES[stateName].filter((city) =>
           city.toLowerCase().includes(query.toLowerCase())
         );
         return localCities.slice(0, 10);
@@ -431,10 +445,15 @@ const DebouncedAutoComplete = ({
 
       if (searchValue && searchValue.length >= 1) {
         setIsLoading(true);
-        console.log(`🔍 Fetching ${apiType} for "${searchValue}" with stateCode: "${stateCode}"`);
+        console.log(
+          `🔍 Fetching ${apiType} for "${searchValue}" with stateCode: "${stateCode}"`
+        );
         try {
           const results = await LOCATION_APIS[apiType](searchValue, stateCode);
-          console.log(`✅ Fetched ${results.length} ${apiType} results:`, results);
+          console.log(
+            `✅ Fetched ${results.length} ${apiType} results:`,
+            results
+          );
           setFilteredOptions(results);
           setIsOpen(results.length > 0);
         } catch (err) {
@@ -490,7 +509,9 @@ const DebouncedAutoComplete = ({
         value={inputValue}
         onChange={handleInputChange}
         placeholder={isDisabled ? "Select state first" : placeholder}
-        className={`${className} ${isDisabled ? "bg-gray-100 cursor-not-allowed opacity-60" : ""}`}
+        className={`${className} ${
+          isDisabled ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
+        }`}
         onFocus={() => {
           if (!isDisabled && inputValue) fetchOptions(inputValue);
         }}
@@ -575,8 +596,6 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
     },
   });
 
-
-
   const contactNoValue = watch("contactNo");
   const alternateContactNoValue = watch("alternateContactNo");
   const panNoValue = watch("panNo");
@@ -588,18 +607,17 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   const currentStateValue = watch("currentState");
   const preferredStateValue = watch("preferredState");
 
-    useEffect(() => {
-  if (currentStateValue) {
-    setValue("currentCity", "");
-  }
-}, [currentStateValue, setValue]);
+  useEffect(() => {
+    if (currentStateValue) {
+      setValue("currentCity", "");
+    }
+  }, [currentStateValue, setValue]);
 
-useEffect(() => {
-  if (preferredStateValue) {
-    setValue("preferredCity", "");
-  }
-}, [preferredStateValue, setValue]);
-
+  useEffect(() => {
+    if (preferredStateValue) {
+      setValue("preferredCity", "");
+    }
+  }, [preferredStateValue, setValue]);
 
   // Effect to set the upload date automatically
   useEffect(() => {
@@ -635,28 +653,31 @@ useEffect(() => {
       // Handle upload date mapping - check various possible field names
       if (initialData.dateOfUpload) {
         // Format date for HTML date input (YYYY-MM-DD)
-        if (initialData.dateOfUpload.includes('T')) {
-          updatedData.uploadDate = initialData.dateOfUpload.split('T')[0];
+        if (initialData.dateOfUpload.includes("T")) {
+          updatedData.uploadDate = initialData.dateOfUpload.split("T")[0];
         } else {
           updatedData.uploadDate = initialData.dateOfUpload;
         }
       } else if (initialData.createdAt) {
         // Format date for HTML date input (YYYY-MM-DD)
-        if (initialData.createdAt.includes('T')) {
-          updatedData.uploadDate = initialData.createdAt.split('T')[0];
+        if (initialData.createdAt.includes("T")) {
+          updatedData.uploadDate = initialData.createdAt.split("T")[0];
         } else {
           updatedData.uploadDate = initialData.createdAt;
         }
       } else if (initialData.uploadedAt) {
         // Format date for HTML date input (YYYY-MM-DD)
-        if (initialData.uploadedAt.includes('T')) {
-          updatedData.uploadDate = initialData.uploadedAt.split('T')[0];
+        if (initialData.uploadedAt.includes("T")) {
+          updatedData.uploadDate = initialData.uploadedAt.split("T")[0];
         } else {
           updatedData.uploadDate = initialData.uploadedAt;
         }
       }
 
-      console.log("🔍 Form.jsx: Updated data being passed to reset:", updatedData);
+      console.log(
+        "🔍 Form.jsx: Updated data being passed to reset:",
+        updatedData
+      );
       reset(updatedData);
 
       // Set comments from existing data (do NOT use comment1, comment2, comment3)
@@ -1374,9 +1395,14 @@ useEffect(() => {
                               }
                               // Debug logging
                               onFocus={() => {
-                                const stateCode = STATE_CODE_MAPPING[currentStateValue] || null;
-                                console.log(`🔍 Current State: "${currentStateValue}", StateCode: "${stateCode}"`);
-                                console.log(`🔍 STATE_CODE_MAPPING["${currentStateValue}"] = "${stateCode}"`);
+                                const stateCode =
+                                  STATE_CODE_MAPPING[currentStateValue] || null;
+                                console.log(
+                                  `🔍 Current State: "${currentStateValue}", StateCode: "${stateCode}"`
+                                );
+                                console.log(
+                                  `🔍 STATE_CODE_MAPPING["${currentStateValue}"] = "${stateCode}"`
+                                );
                               }}
                               disabled={!currentStateValue}
                             />
@@ -1431,9 +1457,15 @@ useEffect(() => {
                               }
                               // Debug logging
                               onFocus={() => {
-                                const stateCode = STATE_CODE_MAPPING[preferredStateValue] || null;
-                                console.log(`🔍 Preferred State: "${preferredStateValue}", StateCode: "${stateCode}"`);
-                                console.log(`🔍 STATE_CODE_MAPPING["${preferredStateValue}"] = "${stateCode}"`);
+                                const stateCode =
+                                  STATE_CODE_MAPPING[preferredStateValue] ||
+                                  null;
+                                console.log(
+                                  `🔍 Preferred State: "${preferredStateValue}", StateCode: "${stateCode}"`
+                                );
+                                console.log(
+                                  `🔍 STATE_CODE_MAPPING["${preferredStateValue}"] = "${stateCode}"`
+                                );
                               }}
                               disabled={!preferredStateValue}
                             />
@@ -1614,13 +1646,11 @@ useEffect(() => {
                     name="ctcInLakhs"
                     control={control}
                     render={({ field }) => (
-                      <select
-                        {...field}
-                        className={selectClass}
-                      >
+                      <select {...field} className={selectClass}>
                         <option value="">Select CTC</option>
-                        {Array.from({ length: 201 }, (_, i) => {
-                          const value = (i * 0.5).toFixed(2);
+                        {Array.from({ length: 400 }, (_, i) => {
+                          const value = (1 + i * 0.5).toFixed(2);
+                          if (parseFloat(value) > 200) return null;
                           return (
                             <option key={value} value={value}>
                               {value}
@@ -1644,17 +1674,13 @@ useEffect(() => {
                     name="totalExperience"
                     control={control}
                     render={({ field }) => (
-                      <select
-                        {...field}
-                        className={selectClass}
-                      >
+                      <select {...field} className={selectClass}>
                         <option value="">Select Experience</option>
-                        {Array.from({ length: 36 }, (_, i) => {
-                          const min = i;
-                          const max = i + 1;
-                          const label = i === 35 ? "35+ years" : `${min}-${max} years`;
+                        {Array.from({ length: 35 }, (_, i) => {
+                          const year = i + 1;
+                          const label = year === 35 ? "35+" : `${year}`;
                           return (
-                            <option key={i} value={label}>
+                            <option key={year} value={label}>
                               {label}
                             </option>
                           );
