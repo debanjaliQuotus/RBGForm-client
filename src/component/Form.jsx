@@ -770,30 +770,11 @@ useEffect(() => {
         "ctcInLakhs",
       ];
 
-      // Handle total experience range combination
-      if (data.totalExperienceMin !== undefined && data.totalExperienceMin !== "" &&
-          data.totalExperienceMax !== undefined && data.totalExperienceMax !== "") {
-        const minExp = parseInt(data.totalExperienceMin);
-        const maxExp = parseInt(data.totalExperienceMax);
-
-        if (minExp < maxExp) {
-          // Create range format like "2-5 years"
-          data.totalExperience = `${minExp}-${maxExp} `;
-        } else if (minExp === maxExp) {
-          // Same value, just show single value
-          data.totalExperience = `${minExp}`;
-        } else {
-          // Min is greater than max, swap them
-          data.totalExperience = `${maxExp}-${minExp} `;
-        }
-      } else if (data.totalExperienceMin !== undefined && data.totalExperienceMin !== "") {
-        // Only min specified
-        const minExp = parseInt(data.totalExperienceMin);
-        data.totalExperience = `${minExp} `;
-      } else if (data.totalExperienceMax !== undefined && data.totalExperienceMax !== "") {
-        // Only max specified
-        const maxExp = parseInt(data.totalExperienceMax);
-        data.totalExperience = `0-${maxExp}`;
+      // Handle total experience - now it's a single field
+      if (data.totalExperience) {
+        // The value is already in the correct format from the dropdown
+        // Just ensure it ends with a space if needed
+        data.totalExperience = data.totalExperience.trim();
       }
 
       // Fields that should NOT be sent to backend (system fields)
@@ -809,8 +790,6 @@ useEffect(() => {
         "__v",
         "permanentDetails",
         "comments",
-        "totalExperienceMin",
-        "totalExperienceMax",
       ];
 
       Object.keys(data).forEach((key) => {
@@ -1629,65 +1608,31 @@ useEffect(() => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    CTC
+                    CTC (in Lakhs)
                   </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      
-                      <Controller
-                        name="ctcInLakhs"
-                        control={control}
-                        render={({ field }) => (
-                          <select
-                            {...field}
-                            className={selectClass}
-                            onChange={(e) => {
-                              const selectedValue = e.target.value;
-                              const currentDecimal = field.value ? field.value.split('.')[1] || '00' : '00';
-                              const newValue = selectedValue ? `${selectedValue}.${currentDecimal}` : '';
-                              field.onChange(newValue);
-                            }}
-                          >
-                            <option value="">Select</option>
-                            {Array.from({ length: 100 }, (_, i) => (
-                              <option key={i + 1} value={i + 1}>
-                                {i + 1}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      />
-                    </div>
-                    <div>
-                    
-                      <Controller
-                        name="ctcInLakhs"
-                        control={control}
-                        render={({ field }) => (
-                          <select
-                            value={field.value ? field.value.split('.')[1] || '00' : '00'}
-                            className={selectClass}
-                            onChange={(e) => {
-                              const selectedDecimal = e.target.value;
-                              const currentInteger = field.value ? field.value.split('.')[0] || '0' : '0';
-                              const newValue = `${currentInteger}.${selectedDecimal}`;
-                              field.onChange(newValue);
-                            }}
-                          >
-                            <option value="00">0</option>
-                            {Array.from({ length: 100 }, (_, i) => (
-                              <option key={i + 1} value={String(i + 1).padStart(2, '0')}>
-                                {String(i + 1).padStart(2, '0')}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      />
-                    </div>
-                  </div>
+                  <Controller
+                    name="ctcInLakhs"
+                    control={control}
+                    render={({ field }) => (
+                      <select
+                        {...field}
+                        className={selectClass}
+                      >
+                        <option value="">Select CTC</option>
+                        {Array.from({ length: 201 }, (_, i) => {
+                          const value = (i * 0.5).toFixed(2);
+                          return (
+                            <option key={value} value={value}>
+                              {value}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    )}
+                  />
                   {ctcValue && (
                     <div className="mt-2 text-sm text-gray-600">
-                      Total CTC: ₹{parseFloat(ctcValue).toFixed(2)}
+                      Total CTC: ₹{parseFloat(ctcValue).toFixed(2)} Lakhs
                     </div>
                   )}
                 </div>
@@ -1695,50 +1640,28 @@ useEffect(() => {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Total Experience (Years)
                   </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                     
-                      <Controller
-                        name="totalExperienceMin"
-                        control={control}
-                        render={({ field }) => (
-                          <select
-                            value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.value)}
-                            className={selectClass}
-                          >
-                            <option value="">Min</option>
-                            {Array.from({ length: 36 }, (_, i) => (
-                              <option key={i} value={i}>
-                                {i === 35 ? "35+" : `${i}`}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      />
-                    </div>
-                    <div>
-                   
-                      <Controller
-                        name="totalExperienceMax"
-                        control={control}
-                        render={({ field }) => (
-                          <select
-                            value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.value)}
-                            className={selectClass}
-                          >
-                            <option value="">Max</option>
-                            {Array.from({ length: 36 }, (_, i) => (
-                              <option key={i} value={i}>
-                                {i === 35 ? "35+" : `${i}`}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      />
-                    </div>
-                  </div>
+                  <Controller
+                    name="totalExperience"
+                    control={control}
+                    render={({ field }) => (
+                      <select
+                        {...field}
+                        className={selectClass}
+                      >
+                        <option value="">Select Experience</option>
+                        {Array.from({ length: 36 }, (_, i) => {
+                          const min = i;
+                          const max = i + 1;
+                          const label = i === 35 ? "35+ years" : `${min}-${max} years`;
+                          return (
+                            <option key={i} value={label}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    )}
+                  />
                 </div>
               </div>
             </div>

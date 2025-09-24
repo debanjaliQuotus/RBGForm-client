@@ -154,7 +154,8 @@ const AdminPage = () => {
     ctcMain: "",
     ctcAdditional: "",
     companyName: "",
-    ageRange: "", // <-- Add age filter
+    ageMin: "", // Min age filter
+    ageMax: "", // Max age filter
     uploadDate: "",
   });
 
@@ -205,7 +206,8 @@ const AdminPage = () => {
         ctcMain: "",
         ctcAdditional: "",
         companyName: "",
-        ageRange: "",
+        ageMin: "",
+        ageMax: "",
         uploadDate: "",
       });
     } catch (err) {
@@ -410,22 +412,16 @@ const AdminPage = () => {
       });
     }
 
-    // Age filter
-    if (currentFilters.ageRange) {
+    // Age filter - Min and Max
+    if (currentFilters.ageMin || currentFilters.ageMax) {
       filtered = filtered.filter((user) => {
         const age = calculateAge(user.dateOfBirth);
-        switch (currentFilters.ageRange) {
-          case "20-30":
-            return age >= 20 && age <= 30;
-          case "31-40":
-            return age >= 31 && age <= 40;
-          case "41-50":
-            return age >= 41 && age <= 50;
-          case "51-60":
-            return age >= 51 && age <= 60;
-          default:
-            return true;
-        }
+        if (!age) return false; // Skip users without valid date of birth
+
+        const minAge = currentFilters.ageMin ? parseInt(currentFilters.ageMin) : 20;
+        const maxAge = currentFilters.ageMax ? parseInt(currentFilters.ageMax) : 60;
+
+        return age >= minAge && age <= maxAge;
       });
     }
 
@@ -491,7 +487,8 @@ const AdminPage = () => {
       ctcMain: "",
       ctcAdditional: "",
       companyName: "",
-      ageRange: "",
+      ageMin: "",
+      ageMax: "",
       uploadDate: "",
     };
     setFilters(emptyFilters);
@@ -819,18 +816,36 @@ const AdminPage = () => {
                 </select>
               </div>
             </div>
-            {/* Age Range */}
-            <select
-              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
-              value={filters.ageRange}
-              onChange={(e) => handleFilterChange("ageRange", e.target.value)}
-            >
-              <option value=""> Ages</option>
-              <option value="20-30">20-30 </option>
-              <option value="31-40">31-40 </option>
-              <option value="41-50">41-50 </option>
-              <option value="51-60">51-60 </option>
-            </select>
+            {/* Age Range - Min and Max */}
+            <div className="col-span-1">
+              <label className="block text-xs text-gray-600 mb-1">Age Range</label>
+              <div className="grid grid-cols-2 gap-1">
+                <select
+                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+                  value={filters.ageMin}
+                  onChange={(e) => handleFilterChange("ageMin", e.target.value)}
+                >
+                  <option value="">Min Age</option>
+                  {Array.from({ length: 41 }, (_, i) => (
+                    <option key={i + 20} value={i + 20}>
+                      {i + 20}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+                  value={filters.ageMax}
+                  onChange={(e) => handleFilterChange("ageMax", e.target.value)}
+                >
+                  <option value="">Max Age</option>
+                  {Array.from({ length: 41 }, (_, i) => (
+                    <option key={i + 20} value={i + 20}>
+                      {i + 20}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             {/* Current State */}
             <input
               type="text"

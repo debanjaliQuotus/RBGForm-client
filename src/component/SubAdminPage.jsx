@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Search,
-  Filter,
-  Download,
-  Trash2,
   Eye,
   ChevronLeft,
   ChevronRight,
@@ -12,6 +9,8 @@ import {
   X,
   RefreshCw,
   MessageSquare,
+  Edit,
+  Download,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import UserForm from "./Form";
@@ -130,6 +129,8 @@ const SubAdminPage = () => {
   const [itemsPerPage] = useState(10);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   // Comments modal states
   const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
@@ -152,7 +153,8 @@ const SubAdminPage = () => {
     ctcMain: "",
     ctcAdditional: "",
     companyName: "",
-    ageRange: "",
+    ageMin: "", // Min age filter
+    ageMax: "", // Max age filter
     uploadDate: "",
   });
 
@@ -344,22 +346,16 @@ const SubAdminPage = () => {
       });
     }
 
-    // Age filter
-    if (currentFilters.ageRange) {
+    // Age filter - Min and Max
+    if (currentFilters.ageMin || currentFilters.ageMax) {
       filtered = filtered.filter((user) => {
         const age = calculateAge(user.dateOfBirth);
-        switch (currentFilters.ageRange) {
-          case "20-30":
-            return age >= 20 && age <= 30;
-          case "31-40":
-            return age >= 31 && age <= 40;
-          case "41-50":
-            return age >= 41 && age <= 50;
-          case "51-60":
-            return age >= 51 && age <= 60;
-          default:
-            return true;
-        }
+        if (!age) return false; // Skip users without valid date of birth
+
+        const minAge = currentFilters.ageMin ? parseInt(currentFilters.ageMin) : 20;
+        const maxAge = currentFilters.ageMax ? parseInt(currentFilters.ageMax) : 60;
+
+        return age >= minAge && age <= maxAge;
       });
     }
 
@@ -410,7 +406,8 @@ const SubAdminPage = () => {
       ctcMain: "",
       ctcAdditional: "",
       companyName: "",
-      ageRange: "",
+      ageMin: "",
+      ageMax: "",
       uploadDate: "",
     };
     setFilters(emptyFilters);
@@ -418,10 +415,51 @@ const SubAdminPage = () => {
     setCurrentPage(1);
   };
 
-  // Handle form success (for add user)
+  // Handle form success (for both add and edit)
   const handleFormSuccess = () => {
     setIsAddModalOpen(false);
+    setIsEditModalOpen(false);
+    setSelectedUser(null);
     fetchUsers(); // Refresh the data
+  };
+
+  // Handle edit button click
+  const handleEditClick = (user) => {
+    console.log("🔍 SubAdminPage.jsx: Edit user data:", user);
+    setSelectedUser(user);
+    setIsEditModalOpen(true);
+  };
+
+  // Download resume function
+  const handleDownloadResume = async (userId, fileName) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/download-pdf`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("No Resume Uploaded");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName || `resume_${userId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download error:", error);
+      alert("Failed to download resume: " + error.message);
+    }
   };
 
   // Fetch comments for a specific user
@@ -654,18 +692,36 @@ const SubAdminPage = () => {
                 </select>
               </div>
             </div>
-            {/* Age Range */}
-            <select
-              className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
-              value={filters.ageRange}
-              onChange={(e) => handleFilterChange("ageRange", e.target.value)}
-            >
-              <option value=""> Ages</option>
-              <option value="20-30">20-30</option>
-              <option value="31-40">31-40</option>
-              <option value="41-50">41-50</option>
-              <option value="51-60">51-60</option>
-            </select>
+            {/* Age Range - Min and Max */}
+            <div className="col-span-1">
+              <label className="block text-xs text-gray-600 mb-1">Age Range</label>
+              <div className="grid grid-cols-2 gap-1">
+                <select
+                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+                  value={filters.ageMin}
+                  onChange={(e) => handleFilterChange("ageMin", e.target.value)}
+                >
+                  <option value="">Min Age</option>
+                  {Array.from({ length: 41 }, (_, i) => (
+                    <option key={i + 20} value={i + 20}>
+                      {i + 20}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
+                  value={filters.ageMax}
+                  onChange={(e) => handleFilterChange("ageMax", e.target.value)}
+                >
+                  <option value="">Max Age</option>
+                  {Array.from({ length: 41 }, (_, i) => (
+                    <option key={i + 20} value={i + 20}>
+                      {i + 20}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             {/* Current State */}
             <input
               type="text"
@@ -786,6 +842,9 @@ const SubAdminPage = () => {
                 <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Comments
                 </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -893,6 +952,29 @@ const SubAdminPage = () => {
                       </button>
                     </div>
                   </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleEditClick(user)}
+                        className="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors"
+                        title="Edit User"
+                      >
+                        <Edit className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleDownloadResume(
+                            user._id || user.id,
+                            `${user.firstName}_${user.lastName}_resume.pdf`
+                          )
+                        }
+                        className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                        title="Download Resume"
+                      >
+                        <Download className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -984,6 +1066,32 @@ const SubAdminPage = () => {
               <UserForm
                 mode="add"
                 onClose={() => setIsAddModalOpen(false)}
+                onSuccess={handleFormSuccess}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Edit User Modal */}
+        {isEditModalOpen && selectedUser && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 overflow-hidden">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-6xl max-h-[85vh] overflow-y-auto p-4 relative mx-4">
+              <button
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setSelectedUser(null);
+                }}
+                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 z-10"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <UserForm
+                mode="edit"
+                initialData={selectedUser}
+                onClose={() => {
+                  setIsEditModalOpen(false);
+                  setSelectedUser(null);
+                }}
                 onSuccess={handleFormSuccess}
               />
             </div>
