@@ -431,7 +431,7 @@ const SubUserPage = () => {
   const handleDownloadResume = async (userId, fileName) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/download-pdf`,
+        `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/download-file`,
         {
           method: 'GET',
           headers: {
@@ -445,10 +445,20 @@ const SubUserPage = () => {
       }
 
       const blob = await response.blob();
+      const contentType = response.headers.get('content-type');
+      let extension = 'pdf';
+      if (contentType === 'application/pdf') {
+        extension = 'pdf';
+      } else if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        extension = 'docx';
+      } else if (contentType === 'application/msword') {
+        extension = 'doc';
+      }
+      const downloadName = fileName ? fileName.replace(/\.pdf$/, `.${extension}`) : `resume_${userId}.${extension}`;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = fileName || `resume_${userId}.pdf`;
+      a.download = downloadName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

@@ -624,34 +624,44 @@ const handleExportExcel = async () => {
   };
 
   // Download resume function
-  const handleDownloadResume = async (userId, fileName) => {
+   const handleDownloadResume = async (userId, fileName) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/download-pdf`,
+        `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/download-file`,
         {
-          method: "GET",
+          method: 'GET',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
         }
       );
 
       if (!response.ok) {
-        throw new Error("No Resume Uploaded");
+        throw new Error('Failed to download file');
       }
 
       const blob = await response.blob();
+      const contentType = response.headers.get('content-type');
+      let extension = 'pdf';
+      if (contentType === 'application/pdf') {
+        extension = 'pdf';
+      } else if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        extension = 'docx';
+      } else if (contentType === 'application/msword') {
+        extension = 'doc';
+      }
+      const downloadName = fileName ? fileName.replace(/\.pdf$/, `.${extension}`) : `resume_${userId}.${extension}`;
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
+      const a = document.createElement('a');
       a.href = url;
-      a.download = fileName || `resume_${userId}.pdf`;
+      a.download = downloadName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Download error:", error);
-      alert("Failed to download resume: " + error.message);
+      console.error('Download error:', error);
+      alert('Failed to download resume: ' + error.message);
     }
   };
 
