@@ -296,7 +296,46 @@ const LOCATION_APIS = {
 
   // Cities - using new districts API or GeoDB API with local fallback
   cities: async (query, stateCode = null) => {
-    if (!query) return [];
+    if (!query) {
+      // Return all cities for the state when no query (for select dropdown)
+      const stateName = Object.keys(STATE_CODE_MAPPING).find(
+        (state) => STATE_CODE_MAPPING[state] === stateCode
+      );
+      if (stateName) {
+        try {
+          const url = `${import.meta.env.VITE_BACKEND_URI}/api/locations/cities?state=${encodeURIComponent(stateName)}`;
+          console.log(`🔍 Cities API URL (via proxy): ${url}`);
+
+          const res = await fetch(url);
+          if (!res.ok) {
+            throw new Error(`Cities API proxy responded with status: ${res.status}`);
+          }
+
+          const responseData = await res.json();
+          console.log(`📡 Cities API Response (via proxy):`, responseData);
+
+          const cities = Array.isArray(responseData) ? responseData : responseData.data || responseData.cities || [];
+          if (!Array.isArray(cities)) {
+            console.warn("❌ Cities API returned non-array data:", cities);
+            throw new Error("Invalid response structure");
+          }
+
+          console.log(`🏙️ All cities for ${stateName}:`, cities);
+          return cities;
+        } catch (err) {
+          console.error("❌ Cities API failed for all cities:", err.message);
+
+          // Fallback to local cities
+          if (LOCAL_CITIES[stateName]) {
+            console.log(`🔄 Fallback to local cities for ${stateName}`);
+            return LOCAL_CITIES[stateName];
+          }
+
+          return [];
+        }
+      }
+      return [];
+    }
     console.log(
       `🏙️ Cities API called with query: "${query}", stateCode: "${stateCode}"`
     );
@@ -488,12 +527,40 @@ const DebouncedAutoComplete = ({
   className,
   stateCode = null,
   disabled = false,
+  isSelect = false,
 }) => {
   const [inputValue, setInputValue] = useState(value || "");
   const [filteredOptions, setFilteredOptions] = useState([]);
+  const [options, setOptions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef(null);
+
+  const fetchAllOptions = useCallback(async () => {
+    if (apiType === "cities" && !stateCode) {
+      console.log(`🚫 No state selected for cities select`);
+      setOptions([]);
+      return;
+    }
+
+    setIsLoading(true);
+    console.log(
+      `🔍 Fetching all ${apiType} with stateCode: "${stateCode}"`
+    );
+    try {
+      const results = await LOCATION_APIS[apiType]("", stateCode);
+      console.log(
+        `✅ Fetched ${results.length} ${apiType} results:`,
+        results
+      );
+      setOptions(results);
+    } catch (err) {
+      console.error("❌ Fetch all failed:", err.message);
+      setOptions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [apiType, stateCode]);
 
   // Reset input when value prop changes
   useEffect(() => {
@@ -503,10 +570,21 @@ const DebouncedAutoComplete = ({
   // Reset options when stateCode changes
   useEffect(() => {
     if (apiType === "cities" && stateCode) {
-      setFilteredOptions([]);
-      setIsOpen(false);
+      if (isSelect) {
+        fetchAllOptions();
+      } else {
+        setFilteredOptions([]);
+        setIsOpen(false);
+      }
     }
-  }, [stateCode, apiType]);
+  }, [stateCode, apiType, isSelect, fetchAllOptions]);
+
+  // Fetch all options for select mode
+  useEffect(() => {
+    if (isSelect) {
+      fetchAllOptions();
+    }
+  }, [isSelect, fetchAllOptions]);
 
   const fetchOptions = useCallback(
     debounce(async (searchValue) => {
@@ -576,6 +654,34 @@ const DebouncedAutoComplete = ({
 
   const isDisabled = disabled || (apiType === "cities" && !stateCode);
 
+  if (isSelect) {
+    return (
+      <div className="relative w-full">
+        <select
+          name={name}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={`${className} ${
+            isDisabled ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
+          }`}
+          disabled={isDisabled}
+        >
+          <option value="">{isDisabled ? "Select state first" : placeholder}</option>
+          {options.map((option, index) => (
+            <option key={index} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        {isLoading && (
+          <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+            <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div ref={containerRef} className="relative w-full">
       <input
@@ -625,7 +731,6 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   const [documentFile, setdocumentFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const docxContainerRef = useRef(null);
-  const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [comments, setComments] = useState([""]);
 
@@ -640,7 +745,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   const removeComment = (index) =>
     setComments(comments.filter((_, i) => i !== index));
 
-  const { control, handleSubmit, setValue, watch, reset } = useForm({
+  const { control, handleSubmit, setValue, watch, reset, setError, clearErrors, formState: { errors } } = useForm({
     defaultValues: {
       uploadedBy: "",
       uploadDate: "",
@@ -681,6 +786,8 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   // Watch state values for city filtering
   const currentStateValue = watch("currentState");
   const preferredStateValue = watch("preferredState");
+  const currentCityValue = watch("currentCity");
+  const preferredCityValue = watch("preferredCity");
 
   useEffect(() => {
     if (currentStateValue) {
@@ -693,6 +800,40 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       setValue("preferredCity", "");
     }
   }, [preferredStateValue, setValue]);
+
+  // Real-time validation for current city
+  useEffect(() => {
+    const validateCurrentCity = async () => {
+      if (currentCityValue && currentStateValue) {
+        const isValid = await checkCityValidity(currentCityValue, currentStateValue);
+        if (!isValid) {
+          setError("currentCity", { message: "The selected city is not included in the specific state." });
+        } else {
+          clearErrors("currentCity");
+        }
+      } else {
+        clearErrors("currentCity");
+      }
+    };
+    validateCurrentCity();
+  }, [currentCityValue, currentStateValue, setError, clearErrors]);
+
+  // Real-time validation for preferred city
+  useEffect(() => {
+    const validatePreferredCity = async () => {
+      if (preferredCityValue && preferredStateValue) {
+        const isValid = await checkCityValidity(preferredCityValue, preferredStateValue);
+        if (!isValid) {
+          setError("preferredCity", { message: "The selected city is not included in the specific state." });
+        } else {
+          clearErrors("preferredCity");
+        }
+      } else {
+        clearErrors("preferredCity");
+      }
+    };
+    validatePreferredCity();
+  }, [preferredCityValue, preferredStateValue, setError, clearErrors]);
 
   // Effect to set the upload date automatically
   useEffect(() => {
@@ -808,8 +949,39 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
     }
   }, [documentFile]);
 
+const checkCityValidity = async (city, stateName) => {
+  if (!city || !stateName) return true;
+
+  const stateCode = STATE_CODE_MAPPING[stateName];
+  try {
+    console.log(`🔍 Validating city "${city}" for state "${stateName}" (code: ${stateCode})`);
+    // Search for the specific city within the state
+    const matchingCities = await LOCATION_APIS.cities(city, stateCode);
+    console.log(`📡 Matching cities found:`, matchingCities);
+    
+    const isValid = matchingCities.some(
+      (c) => c.toLowerCase() === city.toLowerCase()
+    );
+    console.log(`✅ City validation result for "${city}" in "${stateName}": ${isValid}`);
+    return isValid;
+  } catch (e) {
+    console.error("City validation failed:", e);
+
+    // ✅ Fallback to local cities list
+    if (LOCAL_CITIES[stateName]) {
+      return LOCAL_CITIES[stateName].some(
+        (c) => c.toLowerCase() === city.toLowerCase()
+      );
+    }
+
+    // Strict: If we can’t verify, reject it
+    return false;
+  }
+};
+
+
   const onSubmit = async (data) => {
-    const newErrors = {};
+    let hasError = false;
 
     // --- Validation Check ---
     if (
@@ -817,25 +989,49 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       data.alternateContactNo &&
       data.contactNo === data.alternateContactNo
     ) {
-      newErrors.alternateContactNo =
-        "Alternate contact cannot be the same as primary.";
+      setError("alternateContactNo", { message: "Alternate contact cannot be the same as primary." });
+      hasError = true;
     }
     if (
       data.mailId &&
       data.alternateMailId &&
       data.mailId === data.alternateMailId
     ) {
-      newErrors.alternateMailId =
-        "Alternate email cannot be the same as primary.";
+      setError("alternateMailId", { message: "Alternate email cannot be the same as primary." });
+      hasError = true;
     }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+    // Check if current city is valid for the selected state
+   if (data.currentCity && data.currentState) {
+  const isValid = await checkCityValidity(
+    data.currentCity,
+    data.currentState
+  );
+
+  if (!isValid) {
+    setError("currentCity", {
+      type: "manual",
+      message: "❌ The selected city does not belong to the chosen state.",
+    });
+    hasError = true;
+  }
+}
+
+
+    // Check if preferred city is valid for the selected state
+    if (data.preferredCity && data.preferredState) {
+      const isValid = await checkCityValidity(data.preferredCity, data.preferredState);
+      if (!isValid) {
+        setError("preferredCity", { message: "The selected city is not included in the specific state." });
+        hasError = true;
+      }
+    }
+
+    if (hasError) {
       return; // Stop submission if there are errors
     }
 
     setIsSubmitting(true);
-    setErrors({}); // Clear previous errors
 
     try {
       const formData = new FormData();
@@ -978,15 +1174,13 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       console.error(error);
       if (error.response && error.response.data) {
         const { errors: backendErrorsData } = error.response.data;
-        const backendErrors = {};
         if (Array.isArray(backendErrorsData)) {
           backendErrorsData.forEach((err) => {
             if (err.field) {
-              backendErrors[err.field] = err.message;
+              setError(err.field, { message: err.message });
             }
           });
         }
-        setErrors(backendErrors);
       } else {
         alert("Error submitting form. Please try again.");
       }
@@ -998,7 +1192,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   const renderError = (fieldName) =>
     errors[fieldName] ? (
       <p className="text-red-600 text-sm mt-1 font-medium">
-        {errors[fieldName]}
+        {errors[fieldName].message}
       </p>
     ) : null;
 
@@ -1455,6 +1649,12 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                         <Controller
                           name="currentCity"
                           control={control}
+                          rules={{
+                            validate: async (value) => {
+                              if (!value) return true;
+                              return await checkCityValidity(value, currentStateValue) || "Please select a valid city for the selected state";
+                            }
+                          }}
                           render={({ field }) => (
                             <DebouncedAutoComplete
                               {...field}
@@ -1473,16 +1673,17 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                                 const stateCode =
                                   STATE_CODE_MAPPING[currentStateValue] || null;
                                 console.log(
-                                  `🔍 Current State: "${currentStateValue}", StateCode: "${stateCode}"`
+                                  "Current State: " + currentStateValue + ", StateCode: " + stateCode
                                 );
                                 console.log(
-                                  `🔍 STATE_CODE_MAPPING["${currentStateValue}"] = "${stateCode}"`
+                                  "STATE_CODE_MAPPING[" + currentStateValue + "] = " + stateCode
                                 );
                               }}
                               disabled={!currentStateValue}
                             />
                           )}
                         />
+                        {renderError("currentCity")}
                       </div>
                     </div>
                   </div>
@@ -1517,6 +1718,12 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                         <Controller
                           name="preferredCity"
                           control={control}
+                          rules={{
+                            validate: async (value) => {
+                              if (!value) return true;
+                              return await checkCityValidity(value, preferredStateValue) || "Please select a valid city for the selected state";
+                            }
+                          }}
                           render={({ field }) => (
                             <DebouncedAutoComplete
                               {...field}
@@ -1536,10 +1743,10 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                                   STATE_CODE_MAPPING[preferredStateValue] ||
                                   null;
                                 console.log(
-                                  `🔍 Preferred State: "${preferredStateValue}", StateCode: "${stateCode}"`
+                                  "Preferred State: " + preferredStateValue + ", StateCode: " + stateCode
                                 );
                                 console.log(
-                                  `🔍 STATE_CODE_MAPPING["${preferredStateValue}"] = "${stateCode}"`
+                                  "STATE_CODE_MAPPING[" + preferredStateValue + "] = " + stateCode
                                 );
                               }}
                               disabled={!preferredStateValue}
