@@ -321,37 +321,37 @@ const LOCATION_APIS = {
         return localCities.slice(0, 10);
       }
 
-      // Use new districts API if stateId is available
-      if (stateId) {
+      // Use new cities API if stateName is available (via backend proxy to avoid CORS)
+      if (stateName) {
         console.log(
-          `🌐 Using new districts API for ${stateName} (stateId: ${stateId})`
+          `🌐 Using new cities API for ${stateName} via backend proxy`
         );
-        const url = `https://india-location-hub.in/api/locations/districts?state_id=${stateId}`;
-        console.log(`🔍 Districts API URL: ${url}`);
+        const url = `${import.meta.env.VITE_BACKEND_URI}/api/locations/cities?state=${encodeURIComponent(stateName)}`;
+        console.log(`🔍 Cities API URL (via proxy): ${url}`);
 
         const res = await fetch(url);
         if (!res.ok) {
-          throw new Error(`Districts API responded with status: ${res.status}`);
+          throw new Error(`Cities API proxy responded with status: ${res.status}`);
         }
 
         const responseData = await res.json();
-        console.log(`📡 Districts API Response:`, responseData);
+        console.log(`📡 Cities API Response (via proxy):`, responseData);
 
-        // Assume response has districts array
-        const districts = responseData.districts || responseData.data || [];
-        if (!Array.isArray(districts)) {
-          console.warn("❌ Districts API returned non-array data:", districts);
+        // Assume response is an array of cities or has cities in data property
+        const cities = Array.isArray(responseData) ? responseData : responseData.data || responseData.cities || [];
+        if (!Array.isArray(cities)) {
+          console.warn("❌ Cities API returned non-array data:", cities);
           throw new Error("Invalid response structure");
         }
 
-        const filteredDistricts = districts
-          .filter((district) =>
-            district.toLowerCase().includes(query.toLowerCase())
+        const filteredCities = cities
+          .filter((city) =>
+            city.toLowerCase().includes(query.toLowerCase())
           )
           .slice(0, 10);
 
-        console.log(`🏙️ Filtered districts for ${stateName}:`, filteredDistricts);
-        return filteredDistricts;
+        console.log(`🏙️ Filtered cities for ${stateName}:`, filteredCities);
+        return filteredCities;
       }
 
       // Fallback to GeoDB API for states without stateId or no state selected

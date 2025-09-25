@@ -135,8 +135,8 @@ const SubUserPage = () => {
     department: "",
     experienceMin: "",
     experienceMax: "",
-    ctcMain: "",
-    ctcAdditional: "",
+    ctcMin: "",
+    ctcMax: "",
     companyName: "",
     ageMin: "", // Min age filter
     ageMax: "", // Max age filter
@@ -376,8 +376,8 @@ const SubUserPage = () => {
       department: "",
       experienceMin: "",
       experienceMax: "",
-      ctcMain: "",
-      ctcAdditional: "",
+      ctcMin: "",
+      ctcMax: "",
       companyName: "",
       ageMin: "",
       ageMax: "",

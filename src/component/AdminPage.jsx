@@ -538,18 +538,14 @@ const AdminPage = () => {
   };
 
   // Fixed Excel export with current filters
-  const handleExportExcel = async () => {
+const handleExportExcel = async () => {
     try {
-      // Build query params from filters state with backend-expected parameter names
       const params = new URLSearchParams();
 
-      // Map frontend filter names to backend parameter names
       const filterMapping = {
-        ctcMin: "minCTC",
-        ctcMax: "maxCTC",
+        ctcMin: "ctcInLakhs", // ✅ backend expects "ctcInLakhs"
         experienceMin: "minExperience",
         experienceMax: "maxExperience",
-        // Keep other filters as-is
         search: "search",
         gender: "gender",
         currentState: "currentState",
@@ -558,8 +554,10 @@ const AdminPage = () => {
         preferredCity: "preferredCity",
         designation: "designation",
         department: "department",
-        companyName: "currentEmployer", // Map to currentEmployer
-        // Note: ageMin, ageMax, and uploadDate are not handled by backend
+        companyName: "currentEmployer",
+        uploadedBy: "uploadedBy", // if needed
+        startDate: "startDate", // if date filters are in frontend
+        endDate: "endDate",
       };
 
       Object.entries(filters).forEach(([key, value]) => {
@@ -568,18 +566,17 @@ const AdminPage = () => {
         }
       });
 
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_BACKEND_URI
-        }/forms/download/export-excel`,
-        {
-          method: "GET",
-          headers: {
-            Accept:
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          },
-        }
-      );
+      // 👇 send query params in the request
+     const response = await fetch(
+  `${import.meta.env.VITE_BACKEND_URI}/forms/download/export-excel?${params.toString()}`,
+  {
+    method: "GET",
+    headers: {
+      Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    },
+  }
+);
+
 
       if (!response.ok) {
         throw new Error(

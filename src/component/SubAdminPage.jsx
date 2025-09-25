@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Edit,
   Download,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import UserForm from "./Form";
@@ -50,7 +51,7 @@ const DEPARTMENT_OPTIONS = [
   "Corportate Sales",
   "OEM",
   "Group Insurance",
-  "Other"
+  "Other",
 ];
 
 // Company options for filter dropdown
@@ -150,8 +151,8 @@ const SubAdminPage = () => {
     department: "",
     experienceMin: "",
     experienceMax: "",
-    ctcMain: "",
-    ctcAdditional: "",
+    ctcMin: "",
+    ctcMax: "",
     companyName: "",
     ageMin: "", // Min age filter
     ageMax: "", // Max age filter
@@ -309,40 +310,29 @@ const SubAdminPage = () => {
     if (currentFilters.experienceMin || currentFilters.experienceMax) {
       filtered = filtered.filter((user) => {
         const exp = parseFloat(user.totalExperience) || 0;
-        const minExp = currentFilters.experienceMin ? parseFloat(currentFilters.experienceMin) : 0;
-        const maxExp = currentFilters.experienceMax ? parseFloat(currentFilters.experienceMax) : Infinity;
+        const minExp = currentFilters.experienceMin
+          ? parseFloat(currentFilters.experienceMin)
+          : 0;
+        const maxExp = currentFilters.experienceMax
+          ? parseFloat(currentFilters.experienceMax)
+          : Infinity;
 
         return exp >= minExp && exp <= maxExp;
       });
     }
 
-    // CTC - Two dropdown filter
-    if (currentFilters.ctcMain || currentFilters.ctcAdditional) {
+    // CTC - Range filter using ctcMin and ctcMax
+    if (currentFilters.ctcMin || currentFilters.ctcMax) {
       filtered = filtered.filter((user) => {
         const userCtc = parseFloat(user.ctcInLakhs) || 0;
+        const minCtc = currentFilters.ctcMin
+          ? parseFloat(currentFilters.ctcMin)
+          : 0;
+        const maxCtc = currentFilters.ctcMax
+          ? parseFloat(currentFilters.ctcMax)
+          : Infinity;
 
-        // If only main CTC is selected
-        if (currentFilters.ctcMain && !currentFilters.ctcAdditional) {
-          const mainCtc = parseFloat(currentFilters.ctcMain);
-          return userCtc >= mainCtc && userCtc < (mainCtc + 1);
-        }
-
-        // If only additional CTC is selected
-        if (!currentFilters.ctcMain && currentFilters.ctcAdditional) {
-          const additionalCtc = parseFloat(currentFilters.ctcAdditional) / 100;
-          const targetCtc = Math.floor(userCtc) + additionalCtc;
-          return Math.abs(userCtc - targetCtc) < 0.01;
-        }
-
-        // If both are selected
-        if (currentFilters.ctcMain && currentFilters.ctcAdditional) {
-          const mainCtc = parseFloat(currentFilters.ctcMain);
-          const additionalCtc = parseFloat(currentFilters.ctcAdditional) / 100;
-          const targetCtc = mainCtc + additionalCtc;
-          return Math.abs(userCtc - targetCtc) < 0.01;
-        }
-
-        return true;
+        return userCtc >= minCtc && userCtc <= maxCtc;
       });
     }
 
@@ -352,8 +342,12 @@ const SubAdminPage = () => {
         const age = calculateAge(user.dateOfBirth);
         if (!age) return false; // Skip users without valid date of birth
 
-        const minAge = currentFilters.ageMin ? parseInt(currentFilters.ageMin) : 20;
-        const maxAge = currentFilters.ageMax ? parseInt(currentFilters.ageMax) : 60;
+        const minAge = currentFilters.ageMin
+          ? parseInt(currentFilters.ageMin)
+          : 20;
+        const maxAge = currentFilters.ageMax
+          ? parseInt(currentFilters.ageMax)
+          : 60;
 
         return age >= minAge && age <= maxAge;
       });
@@ -372,8 +366,16 @@ const SubAdminPage = () => {
         }
 
         // Compare dates (year, month, day only - ignore time)
-        const userDateOnly = new Date(userDate.getFullYear(), userDate.getMonth(), userDate.getDate());
-        const filterDateOnly = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate());
+        const userDateOnly = new Date(
+          userDate.getFullYear(),
+          userDate.getMonth(),
+          userDate.getDate()
+        );
+        const filterDateOnly = new Date(
+          filterDate.getFullYear(),
+          filterDate.getMonth(),
+          filterDate.getDate()
+        );
 
         return userDateOnly.getTime() === filterDateOnly.getTime();
       });
@@ -403,8 +405,8 @@ const SubAdminPage = () => {
       department: "",
       experienceMin: "",
       experienceMax: "",
-      ctcMain: "",
-      ctcAdditional: "",
+      ctcMin: "",
+      ctcMax: "",
       companyName: "",
       ageMin: "",
       ageMax: "",
@@ -459,6 +461,70 @@ const SubAdminPage = () => {
     } catch (error) {
       console.error("Download error:", error);
       alert("Failed to download resume: " + error.message);
+    }
+  };
+
+  // Fixed Excel export with current filters
+  const handleExportExcel = async () => {
+    try {
+      const params = new URLSearchParams();
+
+      const filterMapping = {
+        ctcMin: "ctcInLakhs", // ✅ backend expects "ctcInLakhs"
+        experienceMin: "minExperience",
+        experienceMax: "maxExperience",
+        search: "search",
+        gender: "gender",
+        currentState: "currentState",
+        preferredState: "preferredState",
+        currentCity: "currentCity",
+        preferredCity: "preferredCity",
+        designation: "designation",
+        department: "department",
+        companyName: "currentEmployer",
+        uploadedBy: "uploadedBy", // if needed
+        startDate: "startDate", // if date filters are in frontend
+        endDate: "endDate",
+      };
+
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && filterMapping[key]) {
+          params.append(filterMapping[key], value);
+        }
+      });
+
+      // 👇 send query params in the request
+     const response = await fetch(
+  `${import.meta.env.VITE_BACKEND_URI}/forms/download/export-excel?${params.toString()}`,
+  {
+    method: "GET",
+    headers: {
+      Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    },
+  }
+);
+
+
+      if (!response.ok) {
+        throw new Error(
+          `Export failed: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `users_export_${
+        new Date().toISOString().split("T")[0]
+      }.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export error:", err);
+      alert("Failed to export Excel file: " + err.message);
     }
   };
 
@@ -601,6 +667,14 @@ const SubAdminPage = () => {
                 <span className="xs:hidden">Add</span>
               </button>
               <button
+                onClick={handleExportExcel}
+                className="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
+              >
+                <FileSpreadsheet className="h-3 w-3" />
+                <span className="hidden xs:inline">Export Excel</span>
+                <span className="xs:hidden">Export</span>
+              </button>
+              <button
                 onClick={handleLogout}
                 className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
               >
@@ -640,7 +714,9 @@ const SubAdminPage = () => {
             <select
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.experienceMin}
-              onChange={(e) => handleFilterChange("experienceMin", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("experienceMin", e.target.value)
+              }
             >
               <option value="">Min Experience</option>
               {Array.from({ length: 36 }, (_, i) => (
@@ -653,7 +729,9 @@ const SubAdminPage = () => {
             <select
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.experienceMax}
-              onChange={(e) => handleFilterChange("experienceMax", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("experienceMax", e.target.value)
+              }
             >
               <option value="">Max Experience</option>
               {Array.from({ length: 36 }, (_, i) => (
@@ -662,39 +740,51 @@ const SubAdminPage = () => {
                 </option>
               ))}
             </select>
-            {/* CTC Range - Two Dropdowns */}
+            {/* CTC Range - Min and Max */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-600 mb-1">CTC</label>
+              <label className="block text-xs text-gray-600 mb-1">
+                CTC Range
+              </label>
               <div className="grid grid-cols-2 gap-1">
                 <select
                   className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
-                  value={filters.ctcMain || ""}
-                  onChange={(e) => handleFilterChange("ctcMain", e.target.value)}
+                  value={filters.ctcMin || ""}
+                  onChange={(e) => handleFilterChange("ctcMin", e.target.value)}
                 >
-                  <option value="">Select</option>
-                  {Array.from({ length: 100 }, (_, i) => (
-                    <option key={i + 1} value={i + 1}>
-                      {i + 1}
-                    </option>
-                  ))}
+                  <option value="">Min CTC</option>
+                  {Array.from({ length: 400 }, (_, i) => {
+                    const value = (1 + i * 0.5).toFixed(2);
+                    if (parseFloat(value) > 200) return null;
+                    return (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    );
+                  })}
                 </select>
                 <select
                   className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
-                  value={filters.ctcAdditional || ""}
-                  onChange={(e) => handleFilterChange("ctcAdditional", e.target.value)}
+                  value={filters.ctcMax || ""}
+                  onChange={(e) => handleFilterChange("ctcMax", e.target.value)}
                 >
-                  <option value="">Select</option>
-                  {Array.from({ length: 100 }, (_, i) => (
-                    <option key={i} value={String(i).padStart(2, '0')}>
-                      {String(i).padStart(2, '0')}
-                    </option>
-                  ))}
+                  <option value="">Max CTC</option>
+                  {Array.from({ length: 400 }, (_, i) => {
+                    const value = (1 + i * 0.5).toFixed(2);
+                    if (parseFloat(value) > 200) return null;
+                    return (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </div>
             {/* Age Range - Min and Max */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-600 mb-1">Age Range</label>
+              <label className="block text-xs text-gray-600 mb-1">
+                Age Range
+              </label>
               <div className="grid grid-cols-2 gap-1">
                 <select
                   className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
@@ -728,7 +818,9 @@ const SubAdminPage = () => {
               placeholder="Current state"
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.currentState}
-              onChange={(e) => handleFilterChange("currentState", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("currentState", e.target.value)
+              }
             />
             {/* Preferred State */}
             <input
@@ -736,7 +828,9 @@ const SubAdminPage = () => {
               placeholder="Preferred state"
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.preferredState}
-              onChange={(e) => handleFilterChange("preferredState", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("preferredState", e.target.value)
+              }
             />
             {/* Current City */}
             <input
@@ -744,7 +838,9 @@ const SubAdminPage = () => {
               placeholder="Current city"
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.currentCity}
-              onChange={(e) => handleFilterChange("currentCity", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("currentCity", e.target.value)
+              }
             />
             {/* Preferred City */}
             <input
@@ -752,7 +848,9 @@ const SubAdminPage = () => {
               placeholder="Preferred city"
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.preferredCity}
-              onChange={(e) => handleFilterChange("preferredCity", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("preferredCity", e.target.value)
+              }
             />
             {/* Designation */}
             <input
@@ -760,7 +858,9 @@ const SubAdminPage = () => {
               placeholder="Designation"
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.designation}
-              onChange={(e) => handleFilterChange("designation", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("designation", e.target.value)
+              }
             />
             {/* Department */}
             <select
@@ -779,7 +879,9 @@ const SubAdminPage = () => {
             <select
               className="px-2 py-2 sm:py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
               value={filters.companyName}
-              onChange={(e) => handleFilterChange("companyName", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("companyName", e.target.value)
+              }
             >
               <option value="">Company Name</option>
               {COMPANY_OPTIONS.map((company) => (
@@ -919,13 +1021,19 @@ const SubAdminPage = () => {
                       Department: {user.department}
                     </div>
                     <div className="text-sm text-[#1B2951]">
-                      CTC: ₹{user.ctcInLakhs || 'N/A'} Lakhs
+                      CTC: ₹{user.ctcInLakhs || "N/A"} Lakhs
                     </div>
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-center">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#B99D54]/20 text-[#1B2951] border border-[#B99D54]/30">
-                        {user.totalExperience ? `${user.totalExperience} ${parseInt(user.totalExperience) === 1 ? 'year' : 'years'}` : 'N/A'}
+                        {user.totalExperience
+                          ? `${user.totalExperience} ${
+                              parseInt(user.totalExperience) === 1
+                                ? "year"
+                                : "years"
+                            }`
+                          : "N/A"}
                       </span>
                     </div>
                   </td>
