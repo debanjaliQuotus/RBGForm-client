@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { X, Edit3, Trash2, RefreshCw, Shield, Users, Key } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { X, Edit3, Trash2, RefreshCw, Shield, Users, Key, MoveLeftIcon } from "lucide-react";
 import {
   getSubAdmins,
   getSubUsers,
@@ -21,6 +22,7 @@ const AdminPanel = () => {
   const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', role: 'sub-admin' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
@@ -135,18 +137,27 @@ const AdminPanel = () => {
   return (
     <div className="min-h-screen bg-[#f8f6f0] p-6">
       <div className="max-w-6xl mx-auto">
+         <button
+              onClick={() => navigate('/admin')}
+              className="px-4 py-2  text-[#2a3a72] rounded-lg  transition-colors flex items-center"
+            >
+              <MoveLeftIcon size={26} className="mr-2" />
+            </button>
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-[#1a2a52] mb-2">Admin Panel</h1>
             <p className="text-gray-600">Manage sub-admins and sub-users in your system</p>
           </div>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="px-4 py-2 bg-[#bfa75a] text-white rounded-lg hover:bg-[#a89548] transition-colors flex items-center"
-          >
-            <Users size={16} className="mr-2" />
-            Create User
-          </button>
+          <div className="flex space-x-3">
+          
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="px-4 py-2 bg-[#bfa75a] text-white rounded-lg hover:bg-[#a89548] transition-colors flex items-center"
+            >
+              <Users size={16} className="mr-2" />
+              Create User
+            </button>
+          </div>
         </div>
 
         {/* Stats Overview */}

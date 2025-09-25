@@ -157,6 +157,44 @@ const STATE_CODE_MAPPING = {
   Puducherry: "PY",
 };
 
+// State to state ID mapping for the new districts API
+const STATE_ID_MAPPING = {
+  "Andhra Pradesh": "28",
+  "Arunachal Pradesh": "12",
+  "Assam": "18",
+  "Bihar": "10",
+  "Chhattisgarh": "22",
+  "Goa": "30",
+  "Gujarat": "24",
+  "Haryana": "06",
+  "Himachal Pradesh": "02",
+  "Jharkhand": "20",
+  "Karnataka": "29",
+  "Kerala": "32",
+  "Madhya Pradesh": "23",
+  "Maharashtra": "27",
+  "Manipur": "14",
+  "Meghalaya": "17",
+  "Mizoram": "15",
+  "Nagaland": "13",
+  "Odisha": "21",
+  "Punjab": "03",
+  "Rajasthan": "08",
+  "Sikkim": "11",
+  "Tamil Nadu": "33",
+  "Tripura": "16",
+  "Uttarakhand": "05",
+  "West Bengal": "19",
+  "Andaman and Nicobar Islands": "35",
+  "Chandigarh": "04",
+  "Dadra and Nagar Haveli and Daman and Diu": "26",
+  "Delhi": "07",
+  "Jammu and Kashmir": "01",
+  "Ladakh": "01",
+  "Lakshadweep": "31",
+  "Puducherry": "34",
+};
+
 // Local cities database as fallback for problematic states
 const LOCAL_CITIES = {
   Odisha: [
@@ -256,18 +294,22 @@ const LOCATION_APIS = {
     }
   },
 
-  // Cities (GeoDB API via RapidAPI) - now filtered by state with local fallback
+  // Cities - using new districts API or GeoDB API with local fallback
   cities: async (query, stateCode = null) => {
     if (!query) return [];
     console.log(
       `🏙️ Cities API called with query: "${query}", stateCode: "${stateCode}"`
     );
     try {
-      // Check if we have local cities for this state (fallback for problematic states)
-      const stateName = Object.keys(LOCAL_CITIES).find(
+      // Find state name from state code
+      const stateName = Object.keys(STATE_CODE_MAPPING).find(
         (state) => STATE_CODE_MAPPING[state] === stateCode
       );
 
+      // Check if we have state ID for the new API
+      const stateId = stateName ? STATE_ID_MAPPING[stateName] : null;
+
+      // Check if we have local cities for this state (fallback for problematic states)
       if (stateName && LOCAL_CITIES[stateName]) {
         console.log(
           `🏠 Using local cities for ${stateName} (stateCode: ${stateCode})`
@@ -279,7 +321,40 @@ const LOCATION_APIS = {
         return localCities.slice(0, 10);
       }
 
-      // Use API for other states
+      // Use new districts API if stateId is available
+      if (stateId) {
+        console.log(
+          `🌐 Using new districts API for ${stateName} (stateId: ${stateId})`
+        );
+        const url = `https://india-location-hub.in/api/locations/districts?state_id=${stateId}`;
+        console.log(`🔍 Districts API URL: ${url}`);
+
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`Districts API responded with status: ${res.status}`);
+        }
+
+        const responseData = await res.json();
+        console.log(`📡 Districts API Response:`, responseData);
+
+        // Assume response has districts array
+        const districts = responseData.districts || responseData.data || [];
+        if (!Array.isArray(districts)) {
+          console.warn("❌ Districts API returned non-array data:", districts);
+          throw new Error("Invalid response structure");
+        }
+
+        const filteredDistricts = districts
+          .filter((district) =>
+            district.toLowerCase().includes(query.toLowerCase())
+          )
+          .slice(0, 10);
+
+        console.log(`🏙️ Filtered districts for ${stateName}:`, filteredDistricts);
+        return filteredDistricts;
+      }
+
+      // Fallback to GeoDB API for states without stateId or no state selected
       let url = `https://wft-geo-db.p.rapidapi.com/v1/geo/cities?countryIds=IN&namePrefix=${query}&limit=10`;
 
       // Add state filter if state is selected
@@ -301,11 +376,11 @@ const LOCATION_APIS = {
       });
 
       if (!res.ok) {
-        throw new Error(`API responded with status: ${res.status}`);
+        throw new Error(`GeoDB API responded with status: ${res.status}`);
       }
 
       const responseData = await res.json();
-      console.log(`📡 Cities API Response:`, responseData);
+      console.log(`📡 GeoDB Cities API Response:`, responseData);
 
       // Handle different possible response structures
       const data =
@@ -313,7 +388,7 @@ const LOCATION_APIS = {
 
       // Ensure data is an array before mapping
       if (!Array.isArray(data)) {
-        console.warn("❌ Cities API returned non-array data:", data);
+        console.warn("❌ GeoDB Cities API returned non-array data:", data);
         return [];
       }
 
@@ -340,9 +415,9 @@ const LOCATION_APIS = {
         );
         const validatedCities = cities.filter((city) => {
           const cityLower = city.toLowerCase();
-          const stateCities = LOCAL_CITIES[stateName].map((c) =>
-            c.toLowerCase()
-          );
+          const stateCities = LOCAL_CITIES[stateName]
+            ? LOCAL_CITIES[stateName].map((c) => c.toLowerCase())
+            : [];
 
           // Check if city exists in our local database for this state
           const isValidCity = stateCities.some(
@@ -792,7 +867,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       ];
 
       // Handle total experience - now it's a single field
-      if (data.totalExperience) {
+      if (data.totalExperience && typeof data.totalExperience === 'string') {
         // The value is already in the correct format from the dropdown
         // Just ensure it ends with a space if needed
         data.totalExperience = data.totalExperience.trim();
@@ -1188,8 +1263,8 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                       render={({ field }) => (
                         <select {...field} className={selectClass}>
                           <option value="">Year</option>
-                          {Array.from({ length: 100 }, (_, i) => {
-                            const year = new Date().getFullYear() - i;
+                          {Array.from({ length: 90 }, (_, i) => {
+                            const year = 2010 - i;
                             return (
                               <option key={year} value={year}>
                                 {year}

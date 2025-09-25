@@ -151,8 +151,8 @@ const AdminPage = () => {
     department: "",
     experienceMin: "",
     experienceMax: "",
-    ctcMain: "",
-    ctcAdditional: "",
+    ctcMin: "",
+    ctcMax: "",
     companyName: "",
     ageMin: "", // Min age filter
     ageMax: "", // Max age filter
@@ -203,8 +203,8 @@ const AdminPage = () => {
         department: "",
         experienceMin: "",
         experienceMax: "",
-        ctcMain: "",
-        ctcAdditional: "",
+        ctcMin: "",
+        ctcMax: "",
         companyName: "",
         ageMin: "",
         ageMax: "",
@@ -382,33 +382,18 @@ const AdminPage = () => {
       });
     }
 
-    // CTC - Two dropdown filter
-    if (currentFilters.ctcMain || currentFilters.ctcAdditional) {
+    // CTC - Range filter using ctcMin and ctcMax
+    if (currentFilters.ctcMin || currentFilters.ctcMax) {
       filtered = filtered.filter((user) => {
         const userCtc = parseFloat(user.ctcInLakhs) || 0;
+        const minCtc = currentFilters.ctcMin
+          ? parseFloat(currentFilters.ctcMin)
+          : 0;
+        const maxCtc = currentFilters.ctcMax
+          ? parseFloat(currentFilters.ctcMax)
+          : Infinity;
 
-        // If only main CTC is selected
-        if (currentFilters.ctcMain && !currentFilters.ctcAdditional) {
-          const mainCtc = parseFloat(currentFilters.ctcMain);
-          return userCtc >= mainCtc && userCtc < mainCtc + 1;
-        }
-
-        // If only additional CTC is selected
-        if (!currentFilters.ctcMain && currentFilters.ctcAdditional) {
-          const additionalCtc = parseFloat(currentFilters.ctcAdditional) / 100;
-          const targetCtc = Math.floor(userCtc) + additionalCtc;
-          return Math.abs(userCtc - targetCtc) < 0.01;
-        }
-
-        // If both are selected
-        if (currentFilters.ctcMain && currentFilters.ctcAdditional) {
-          const mainCtc = parseFloat(currentFilters.ctcMain);
-          const additionalCtc = parseFloat(currentFilters.ctcAdditional) / 100;
-          const targetCtc = mainCtc + additionalCtc;
-          return Math.abs(userCtc - targetCtc) < 0.01;
-        }
-
-        return true;
+        return userCtc >= minCtc && userCtc <= maxCtc;
       });
     }
 
@@ -484,8 +469,8 @@ const AdminPage = () => {
       department: "",
       experienceMin: "",
       experienceMax: "",
-      ctcMain: "",
-      ctcAdditional: "",
+      ctcMin: "",
+      ctcMax: "",
       companyName: "",
       ageMin: "",
       ageMax: "",
@@ -555,17 +540,38 @@ const AdminPage = () => {
   // Fixed Excel export with current filters
   const handleExportExcel = async () => {
     try {
-      // Build query params from filters state
+      // Build query params from filters state with backend-expected parameter names
       const params = new URLSearchParams();
 
+      // Map frontend filter names to backend parameter names
+      const filterMapping = {
+        ctcMin: "minCTC",
+        ctcMax: "maxCTC",
+        experienceMin: "minExperience",
+        experienceMax: "maxExperience",
+        // Keep other filters as-is
+        search: "search",
+        gender: "gender",
+        currentState: "currentState",
+        preferredState: "preferredState",
+        currentCity: "currentCity",
+        preferredCity: "preferredCity",
+        designation: "designation",
+        department: "department",
+        companyName: "currentEmployer", // Map to currentEmployer
+        // Note: ageMin, ageMax, and uploadDate are not handled by backend
+      };
+
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
+        if (value && filterMapping[key]) {
+          params.append(filterMapping[key], value);
+        }
       });
 
       const response = await fetch(
         `${
           import.meta.env.VITE_BACKEND_URI
-        }/forms/download/export-excel?${params.toString()}`,
+        }/forms/download/export-excel`,
         {
           method: "GET",
           headers: {
@@ -782,37 +788,45 @@ const AdminPage = () => {
                 </option>
               ))}
             </select>
-            {/* CTC Range - Two Dropdowns */}
+            {/* CTC Range - Min and Max */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-600 mb-1">CTC</label>
+              <label className="block text-xs text-gray-600 mb-1">CTC Range</label>
               <div className="grid grid-cols-2 gap-1">
                 <select
                   className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
-                  value={filters.ctcMain || ""}
+                  value={filters.ctcMin || ""}
                   onChange={(e) =>
-                    handleFilterChange("ctcMain", e.target.value)
+                    handleFilterChange("ctcMin", e.target.value)
                   }
                 >
-                  <option value="">Select</option>
-                  {Array.from({ length: 100 }, (_, i) => (
-                    <option key={i + 1} value={i + 1}>
-                      {i + 1}
-                    </option>
-                  ))}
+                  <option value="">Min CTC</option>
+                  {Array.from({ length: 400 }, (_, i) => {
+                    const value = (1 + i * 0.5).toFixed(2);
+                    if (parseFloat(value) > 200) return null;
+                    return (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    );
+                  })}
                 </select>
                 <select
                   className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
-                  value={filters.ctcAdditional || ""}
+                  value={filters.ctcMax || ""}
                   onChange={(e) =>
-                    handleFilterChange("ctcAdditional", e.target.value)
+                    handleFilterChange("ctcMax", e.target.value)
                   }
                 >
-                  <option value="">Select</option>
-                  {Array.from({ length: 100 }, (_, i) => (
-                    <option key={i} value={String(i).padStart(2, "0")}>
-                      {String(i).padStart(2, "0")}
-                    </option>
-                  ))}
+                  <option value="">Max CTC</option>
+                  {Array.from({ length: 400 }, (_, i) => {
+                    const value = (1 + i * 0.5).toFixed(2);
+                    if (parseFloat(value) > 200) return null;
+                    return (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </div>
@@ -1054,13 +1068,13 @@ const AdminPage = () => {
                       Department: {user.department}
                     </div>
                     <div className="text-sm text-[#1B2951]">
-                      CTC: ₹{user.ctcInLakhs} L
+                      CTC: ₹{user.ctcInLakhs || 'N/A'} Lakhs
                     </div>
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-center">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#B99D54]/20 text-[#1B2951] border border-[#B99D54]/30">
-                        {user.totalExperience} yrs
+                        {user.totalExperience ? `${user.totalExperience} ${parseInt(user.totalExperience) === 1 ? 'year' : 'years'}` : 'N/A'}
                       </span>
                     </div>
                   </td>

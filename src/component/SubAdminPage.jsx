@@ -919,13 +919,13 @@ const SubAdminPage = () => {
                       Department: {user.department}
                     </div>
                     <div className="text-sm text-[#1B2951]">
-                      CTC: ₹{user.ctcInLakhs} L
+                      CTC: ₹{user.ctcInLakhs || 'N/A'} Lakhs
                     </div>
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-center">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#B99D54]/20 text-[#1B2951] border border-[#B99D54]/30">
-                        {user.totalExperience} yrs
+                        {user.totalExperience ? `${user.totalExperience} ${parseInt(user.totalExperience) === 1 ? 'year' : 'years'}` : 'N/A'}
                       </span>
                     </div>
                   </td>
