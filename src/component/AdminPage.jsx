@@ -546,6 +546,8 @@ const handleExportExcel = async () => {
         ctcMin: "ctcInLakhs", // ✅ backend expects "ctcInLakhs"
         experienceMin: "minExperience",
         experienceMax: "maxExperience",
+        ageMin: "minAge",
+        ageMax: "maxAge",
         search: "search",
         gender: "gender",
         currentState: "currentState",
