@@ -465,7 +465,7 @@ const SubAdminPage = () => {
   };
 
   // Fixed Excel export with current filters
-  const handleExportExcel = async () => {
+ const handleExportExcel = async () => {
     try {
       const params = new URLSearchParams();
 
@@ -473,6 +473,8 @@ const SubAdminPage = () => {
         ctcMin: "ctcInLakhs", // ✅ backend expects "ctcInLakhs"
         experienceMin: "minExperience",
         experienceMax: "maxExperience",
+        ageMin: "minAge",
+        ageMax: "maxAge",
         search: "search",
         gender: "gender",
         currentState: "currentState",
