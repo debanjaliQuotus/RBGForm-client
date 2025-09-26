@@ -575,7 +575,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   const [filePreview, setFilePreview] = useState(null);
   const docxContainerRef = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [comments, setComments] = useState([""]);
+  const [comments, setComments] = useState([{ id: null, text: "" }]);
   const [companies, setCompanies] = useState([]);
 
   // Handle logout
@@ -583,9 +583,9 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
     logout();
   };
 
-  const addComment = () => setComments([...comments, ""]);
+  const addComment = () => setComments([...comments, { id: null, text: "" }]);
   const updateComment = (index, value) =>
-    setComments(comments.map((c, i) => (i === index ? value : c)));
+    setComments(comments.map((c, i) => (i === index ? { ...c, text: value } : c)));
   const removeComment = (index) =>
     setComments(comments.filter((_, i) => i !== index));
 
@@ -767,9 +767,9 @@ useEffect(() => {
         Array.isArray(initialData.comments) &&
         initialData.comments.length > 0
       ) {
-        setComments(initialData.comments.map((c) => c.text || ""));
+        setComments(initialData.comments.map((c) => ({ id: c.id, text: c.text || "" })));
       } else {
-        setComments([""]);
+        setComments([{ id: null, text: "" }]);
       }
     }
   }, [initialData, reset]);
@@ -1864,7 +1864,7 @@ const checkCityValidity = async (city, stateName) => {
               {comments.map((comment, index) => (
                 <div key={index} className="flex items-center space-x-2">
                   <input
-                    value={comment}
+                    value={comment.text}
                     onChange={(e) => updateComment(index, e.target.value)}
                     type="text"
                     placeholder={`Enter comment ${
