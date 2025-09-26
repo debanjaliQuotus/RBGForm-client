@@ -1008,8 +1008,8 @@ const checkCityValidity = async (city, stateName) => {
       const responseData = await response.json();
       const formId = responseData.data?.id || responseData.data?._id; // <-- Fix here
 
-      // Submit comments for new forms
-      if (mode === "add" && formId) {
+      // Submit comments
+      if (formId) {
         for (const comment of comments) {
           if (comment.trim()) {
             await fetch(
