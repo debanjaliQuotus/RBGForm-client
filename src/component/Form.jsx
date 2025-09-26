@@ -1873,15 +1873,13 @@ const checkCityValidity = async (city, stateName) => {
                     className={inputClass}
                     maxLength="500"
                   />
-                  {comments.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeComment(index)}
-                      className="px-3 py-1 bg-red-500 text-white rounded"
-                    >
-                      Remove
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeComment(index)}
+                    className="px-3 py-1 bg-red-500 text-white rounded"
+                  >
+                    Remove
+                  </button>
                 </div>
               ))}
               <button
