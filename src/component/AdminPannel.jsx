@@ -49,7 +49,7 @@ const AdminPanel = () => {
       const resCompanies = await getAllCompanies();
       setSubAdmins(resAdmins.data.data || []);
       setSubUsers(resUsers.data.data || []);
-      setCompanies(resCompanies.data.data || []);
+      setCompanies(resCompanies.data || []);
     } catch (error) {
       console.error("Error fetching admin panel data:", error);
       setError("Error loading admin panel data: " + error.message);
