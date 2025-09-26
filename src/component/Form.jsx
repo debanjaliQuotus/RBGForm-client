@@ -13,8 +13,7 @@ const debounce = (func, delay) => {
   };
 };
 
-// Placeholder for insurance companies (used as fallback)
-const INSURANCE_COMPANIES = [];
+
 
 
 
@@ -584,10 +583,60 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   };
 
   const addComment = () => setComments([...comments, { id: null, text: "" }]);
-  const updateComment = (index, value) =>
-    setComments(comments.map((c, i) => (i === index ? { ...c, text: value } : c)));
-  const removeComment = (index) =>
-    setComments(comments.filter((_, i) => i !== index));
+  const updateComment = async (index, value) => {
+    const comment = comments[index];
+    if (mode === "edit" && initialData && comment.id) {
+      // Existing comment in edit mode, call API
+      const formId = initialData.id || initialData._id;
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URI}/forms/${formId}/comments/${index}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: value }),
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`Failed to update comment: ${response.status}`);
+        }
+        // Update local state
+        setComments(comments.map((c, i) => (i === index ? { ...c, text: value } : c)));
+      } catch (error) {
+        console.error("Error updating comment:", error);
+        alert("Failed to update comment. Please try again.");
+      }
+    } else {
+      // New comment or add mode, update local state only
+      setComments(comments.map((c, i) => (i === index ? { ...c, text: value } : c)));
+    }
+  };
+  const removeComment = async (index) => {
+    const comment = comments[index];
+    if (mode === "edit" && initialData && comment.id) {
+      // Existing comment in edit mode, call API
+      const formId = initialData.id || initialData._id;
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URI}/forms/${formId}/comments/${index}`,
+          {
+            method: "DELETE",
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`Failed to remove comment: ${response.status}`);
+        }
+        // Update local state
+        setComments(comments.filter((_, i) => i !== index));
+      } catch (error) {
+        console.error("Error removing comment:", error);
+        alert("Failed to remove comment. Please try again.");
+      }
+    } else {
+      // New comment or add mode, update local state only
+      setComments(comments.filter((_, i) => i !== index));
+    }
+  };
 
   const { control, handleSubmit, setValue, watch, reset, setError, clearErrors, formState: { errors } } = useForm({
     defaultValues: {
@@ -1008,17 +1057,17 @@ const checkCityValidity = async (city, stateName) => {
       const responseData = await response.json();
       const formId = responseData.data?.id || responseData.data?._id; // <-- Fix here
 
-      // Submit comments
+      // Submit comments (only new ones, existing are updated/deleted real-time)
       if (formId) {
         for (const comment of comments) {
-          if (comment.trim()) {
+          if (comment.text.trim() && !comment.id) {
             await fetch(
               `${import.meta.env.VITE_BACKEND_URI}/forms/${formId}/comments`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  text: comment,
+                  text: comment.text,
                   addedBy: user?.email || "unknown",
                 }),
               }
@@ -1865,7 +1914,7 @@ const checkCityValidity = async (city, stateName) => {
                 <div key={index} className="flex items-center space-x-2">
                   <input
                     value={comment.text}
-                    onChange={(e) => updateComment(index, e.target.value)}
+                    onChange={async (e) => await updateComment(index, e.target.value)}
                     type="text"
                     placeholder={`Enter comment ${
                       index + 1
@@ -1875,7 +1924,7 @@ const checkCityValidity = async (city, stateName) => {
                   />
                   <button
                     type="button"
-                    onClick={() => removeComment(index)}
+                    onClick={async () => await removeComment(index)}
                     className="px-3 py-1 bg-red-500 text-white rounded"
                   >
                     Remove
