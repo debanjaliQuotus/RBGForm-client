@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { X, Edit3, Trash2, RefreshCw, Shield, Users, Key, MoveLeftIcon } from "lucide-react";
+import { X, Edit3, Trash2, RefreshCw, Shield, Users, Key, MoveLeftIcon, Building } from "lucide-react";
 import {
   getSubAdmins,
   getSubUsers,
@@ -9,17 +9,29 @@ import {
   deleteSubAdmin,
   deleteSubUser,
   createUser,
+  getAllCompanies,
+  createCompany,
+  updateCompany,
+  deleteCompany,
 } from "../api/adminApi";
 
 const AdminPanel = () => {
   const [subAdmins, setSubAdmins] = useState([]);
   const [subUsers, setSubUsers] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [companySearch, setCompanySearch] = useState("");
+  const [showAllCompanies, setShowAllCompanies] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', role: 'sub-admin' });
+  const [editingCompany, setEditingCompany] = useState(null);
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
+  const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
+  const [createCompanyForm, setCreateCompanyForm] = useState({ name: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -34,8 +46,10 @@ const AdminPanel = () => {
       setError("");
       const resAdmins = await getSubAdmins();
       const resUsers = await getSubUsers();
+      const resCompanies = await getAllCompanies();
       setSubAdmins(resAdmins.data.data || []);
       setSubUsers(resUsers.data.data || []);
+      setCompanies(resCompanies.data.data || []);
     } catch (error) {
       console.error("Error fetching admin panel data:", error);
       setError("Error loading admin panel data: " + error.message);
@@ -109,6 +123,61 @@ const AdminPanel = () => {
     }
   };
 
+  const handleEditCompany = (company) => {
+    setEditingCompany(company);
+    setNewCompanyName(company.name);
+    setIsEditCompanyModalOpen(true);
+  };
+
+  const handleSaveCompany = async () => {
+    if (!editingCompany) return;
+    try {
+      await updateCompany(editingCompany._id, { name: newCompanyName });
+      setIsEditCompanyModalOpen(false);
+      setEditingCompany(null);
+      fetchData();
+    } catch (error) {
+      console.error("Error updating company:", error);
+      alert("Error updating company: " + error.message);
+    }
+  };
+
+  const handleCloseEditCompanyModal = () => {
+    setIsEditCompanyModalOpen(false);
+    setEditingCompany(null);
+    setNewCompanyName("");
+  };
+
+  const handleDeleteCompany = async (id) => {
+    if (window.confirm("Are you sure you want to delete this company?")) {
+      try {
+        await deleteCompany(id);
+        fetchData();
+      } catch (error) {
+        console.error("Error deleting company:", error);
+        alert("Error deleting company: " + error.message);
+      }
+    }
+  };
+
+  const handleCloseCreateCompanyModal = () => {
+    setIsCreateCompanyModalOpen(false);
+    setCreateCompanyForm({ name: '' });
+  };
+
+  const handleCreateCompanySubmit = async () => {
+    try {
+      await createCompany(createCompanyForm);
+      setIsCreateCompanyModalOpen(false);
+      setCreateCompanyForm({ name: '' });
+      fetchData();
+      alert('Company created successfully!');
+    } catch (error) {
+      console.error('Error creating company:', error);
+      alert('Error creating company: ' + error.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-[#f8f6f0]">
@@ -146,10 +215,10 @@ const AdminPanel = () => {
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-[#1a2a52] mb-2">Admin Panel</h1>
-            <p className="text-gray-600">Manage sub-admins and sub-users in your system</p>
+            <p className="text-gray-600">Manage sub-admins, sub-users, and companies in your system</p>
           </div>
           <div className="flex space-x-3">
-          
+
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="px-4 py-2 bg-[#bfa75a] text-white rounded-lg hover:bg-[#a89548] transition-colors flex items-center"
@@ -157,11 +226,18 @@ const AdminPanel = () => {
               <Users size={16} className="mr-2" />
               Create User
             </button>
+            <button
+              onClick={() => setIsCreateCompanyModalOpen(true)}
+              className="px-4 py-2 bg-[#1a2a52] text-white rounded-lg hover:bg-[#2a3a72] transition-colors flex items-center"
+            >
+              <Building size={16} className="mr-2" />
+              Create Company
+            </button>
           </div>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <div className="bg-white rounded-xl shadow-md p-6 flex items-center">
             <div className="p-3 bg-[#bfa75a] bg-opacity-20 rounded-full mr-4">
               <Shield className="text-[#1a2a52]" size={28} />
@@ -171,7 +247,7 @@ const AdminPanel = () => {
               <p className="text-2xl font-bold text-[#1a2a52]">{subAdmins.length}</p>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-md p-6 flex items-center">
             <div className="p-3 bg-[#bfa75a] bg-opacity-20 rounded-full mr-4">
               <Users className="text-[#1a2a52]" size={28} />
@@ -179,6 +255,16 @@ const AdminPanel = () => {
             <div>
               <h3 className="text-lg font-semibold text-[#1a2a52]">Sub-Users</h3>
               <p className="text-2xl font-bold text-[#1a2a52]">{subUsers.length}</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6 flex items-center">
+            <div className="p-3 bg-[#1a2a52] bg-opacity-20 rounded-full mr-4">
+              <Building className="text-[#1a2a52]" size={28} />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-[#1a2a52]">Companies</h3>
+              <p className="text-2xl font-bold text-[#1a2a52]">{companies.length}</p>
             </div>
           </div>
         </div>
@@ -296,6 +382,97 @@ const AdminPanel = () => {
                 <p>No sub-users found</p>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Companies Section */}
+        <div className="mt-12 bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="bg-[#1a2a52] p-4 flex items-center">
+            <Building className="text-white mr-3" size={24} />
+            <h2 className="text-xl font-semibold text-white">Companies</h2>
+            <span className="ml-3 bg-white text-[#1a2a52] px-2 py-1 rounded-full text-sm font-medium">
+              {companies.length}
+            </span>
+          </div>
+
+          <div className="p-4 bg-gray-50 border-b">
+            <input
+              type="text"
+              placeholder="Search companies..."
+              value={companySearch}
+              onChange={(e) => setCompanySearch(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1a2a52] focus:border-transparent"
+            />
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="p-4 text-left text-sm font-medium text-[#1a2a52]">Name</th>
+                  <th className="p-4 text-left text-sm font-medium text-[#1a2a52]">Created At</th>
+                  <th className="p-4 text-left text-sm font-medium text-[#1a2a52]">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const filteredCompanies = companies.filter(company => company.name.toLowerCase().includes(companySearch.toLowerCase()));
+                  const displayedCompanies = showAllCompanies ? filteredCompanies : filteredCompanies.slice(0, 4);
+                  return displayedCompanies.map((company, index) => (
+                    <tr key={company._id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <td className="p-4 border-b">{company.name}</td>
+                      <td className="p-4 border-b">
+                        {new Date(company.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="p-4 border-b">
+                        <div className="flex space-x-2">
+                          <button
+                            className="p-2 bg-[#bfa75a] text-white rounded-lg hover:bg-[#a89548] transition-colors"
+                            onClick={() => handleEditCompany(company)}
+                            title="Edit"
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                          <button
+                            className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                            onClick={() => handleDeleteCompany(company._id)}
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ));
+                })()}
+              </tbody>
+            </table>
+
+            {(() => {
+              const filteredCompanies = companies.filter(company => company.name.toLowerCase().includes(companySearch.toLowerCase()));
+              const displayedCompanies = showAllCompanies ? filteredCompanies : filteredCompanies.slice(0, 4);
+              return (
+                <>
+                  {filteredCompanies.length > 4 && (
+                    <div className="p-4 text-center">
+                      <button
+                        onClick={() => setShowAllCompanies(!showAllCompanies)}
+                        className="px-4 py-2 bg-[#1a2a52] text-white rounded-lg hover:bg-[#2a3a72] transition-colors"
+                      >
+                        {showAllCompanies ? "Show Less" : "Show More"}
+                      </button>
+                    </div>
+                  )}
+
+                  {displayedCompanies.length === 0 && (
+                    <div className="p-8 text-center text-gray-500">
+                      <Building size={48} className="mx-auto mb-4 text-gray-300" />
+                      <p>No companies found</p>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -431,6 +608,90 @@ const AdminPanel = () => {
                   className="px-4 py-2 bg-[#1a2a52] text-white rounded-lg hover:bg-[#2a3a72] focus:outline-none focus:ring-2 focus:ring-[#1a2a52] transition-colors"
                 >
                   Create User
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Company Modal */}
+      {isEditCompanyModalOpen && editingCompany && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md">
+            <div className="bg-[#1a2a52] text-white p-4 rounded-t-xl flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Edit Company</h3>
+              <button onClick={handleCloseEditCompanyModal} className="text-white hover:text-gray-200">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-[#1a2a52] mb-2">Company Name</label>
+                <input
+                  type="text"
+                  value={newCompanyName}
+                  onChange={(e) => setNewCompanyName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1a2a52] focus:border-transparent"
+                  placeholder="Enter company name"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleCloseEditCompanyModal}
+                  className="px-4 py-2 text-[#1a2a52] bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveCompany}
+                  className="px-4 py-2 bg-[#1a2a52] text-white rounded-lg hover:bg-[#2a3a72] focus:outline-none focus:ring-2 focus:ring-[#1a2a52] transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Company Modal */}
+      {isCreateCompanyModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md">
+            <div className="bg-[#1a2a52] text-white p-4 rounded-t-xl flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Create Company</h3>
+              <button onClick={handleCloseCreateCompanyModal} className="text-white hover:text-gray-200">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-[#1a2a52] mb-2">Company Name</label>
+                <input
+                  type="text"
+                  value={createCompanyForm.name}
+                  onChange={(e) => setCreateCompanyForm({ ...createCompanyForm, name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1a2a52] focus:border-transparent"
+                  placeholder="Enter company name"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleCloseCreateCompanyModal}
+                  className="px-4 py-2 text-[#1a2a52] bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateCompanySubmit}
+                  className="px-4 py-2 bg-[#1a2a52] text-white rounded-lg hover:bg-[#2a3a72] focus:outline-none focus:ring-2 focus:ring-[#1a2a52] transition-colors"
+                >
+                  Create Company
                 </button>
               </div>
             </div>

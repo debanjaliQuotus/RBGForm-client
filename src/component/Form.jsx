@@ -3,6 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
 import { LogOut } from "lucide-react";
 import { renderAsync } from "docx-preview";
+import { getAllCompanies } from "../api/adminApi";
 
 const debounce = (func, delay) => {
   let timer;
@@ -157,43 +158,6 @@ const STATE_CODE_MAPPING = {
   Puducherry: "PY",
 };
 
-// State to state ID mapping for the new districts API
-const STATE_ID_MAPPING = {
-  "Andhra Pradesh": "28",
-  "Arunachal Pradesh": "12",
-  "Assam": "18",
-  "Bihar": "10",
-  "Chhattisgarh": "22",
-  "Goa": "30",
-  "Gujarat": "24",
-  "Haryana": "06",
-  "Himachal Pradesh": "02",
-  "Jharkhand": "20",
-  "Karnataka": "29",
-  "Kerala": "32",
-  "Madhya Pradesh": "23",
-  "Maharashtra": "27",
-  "Manipur": "14",
-  "Meghalaya": "17",
-  "Mizoram": "15",
-  "Nagaland": "13",
-  "Odisha": "21",
-  "Punjab": "03",
-  "Rajasthan": "08",
-  "Sikkim": "11",
-  "Tamil Nadu": "33",
-  "Tripura": "16",
-  "Uttarakhand": "05",
-  "West Bengal": "19",
-  "Andaman and Nicobar Islands": "35",
-  "Chandigarh": "04",
-  "Dadra and Nagar Haveli and Daman and Diu": "26",
-  "Delhi": "07",
-  "Jammu and Kashmir": "01",
-  "Ladakh": "01",
-  "Lakshadweep": "31",
-  "Puducherry": "34",
-};
 
 // Local cities database as fallback for problematic states
 const LOCAL_CITIES = {
@@ -279,225 +243,137 @@ const LOCAL_CITIES = {
 
 // API endpoints for fetching location data
 const LOCATION_APIS = {
-  // States of India - now using local data
+  // States of India - using Rapid API (GeoDB)
   states: async (query) => {
     if (!query) return [];
     try {
+      const url = `https://wft-geo-db.p.rapidapi.com/v1/geo/countries/IN/states?limit=10&namePrefix=${encodeURIComponent(query)}`;
+      const res = await fetch(url, {
+        headers: {
+          "X-RapidAPI-Key": "8acb9381a3mshea3bfd0bb433a6dp197841jsn1a5356656ec7",
+          "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`States API responded with status: ${res.status}`);
+      }
+
+      const responseData = await res.json();
+      console.log(`📡 States API Response:`, responseData);
+
+      const data = responseData.data || [];
+      if (!Array.isArray(data)) {
+        console.warn("❌ States API returned non-array data:", data);
+        throw new Error("Invalid response structure");
+      }
+
+      const states = data.map(state => state.name).slice(0, 10);
+      console.log(`🏛️ Filtered states:`, states);
+      return states;
+    } catch (err) {
+      console.error("❌ States API failed:", err.message);
+      // Fallback to local states
       const filteredStates = INDIAN_STATES.filter((state) =>
         state.toLowerCase().includes(query.toLowerCase())
       );
       await new Promise((resolve) => setTimeout(resolve, 100));
       return filteredStates.slice(0, 10);
-    } catch (err) {
-      console.error("❌ States filtering failed:", err);
-      return [];
     }
   },
 
-  // Cities - using new districts API or GeoDB API with local fallback
+  // Cities - using GeoDB Rapid API with local fallback (no backend API)
   cities: async (query, stateCode = null) => {
     if (!query) {
-      // Return all cities for the state when no query (for select dropdown)
+      // Return all cities for the state when no query (for select dropdown) - use local data
       const stateName = Object.keys(STATE_CODE_MAPPING).find(
         (state) => STATE_CODE_MAPPING[state] === stateCode
       );
-      if (stateName) {
-        try {
-          const url = `${import.meta.env.VITE_BACKEND_URI}/api/locations/cities?state=${encodeURIComponent(stateName)}`;
-          console.log(`🔍 Cities API URL (via proxy): ${url}`);
-
-          const res = await fetch(url);
-          if (!res.ok) {
-            throw new Error(`Cities API proxy responded with status: ${res.status}`);
-          }
-
-          const responseData = await res.json();
-          console.log(`📡 Cities API Response (via proxy):`, responseData);
-
-          const cities = Array.isArray(responseData) ? responseData : responseData.data || responseData.cities || [];
-          if (!Array.isArray(cities)) {
-            console.warn("❌ Cities API returned non-array data:", cities);
-            throw new Error("Invalid response structure");
-          }
-
-          console.log(`🏙️ All cities for ${stateName}:`, cities);
-          return cities;
-        } catch (err) {
-          console.error("❌ Cities API failed for all cities:", err.message);
-
-          // Fallback to local cities
-          if (LOCAL_CITIES[stateName]) {
-            console.log(`🔄 Fallback to local cities for ${stateName}`);
-            return LOCAL_CITIES[stateName];
-          }
-
-          return [];
-        }
+      if (stateName && LOCAL_CITIES[stateName]) {
+        console.log(`🏙️ All cities for ${stateName} (local):`, LOCAL_CITIES[stateName]);
+        return LOCAL_CITIES[stateName];
       }
       return [];
     }
     console.log(
       `🏙️ Cities API called with query: "${query}", stateCode: "${stateCode}"`
     );
-    try {
-      // Find state name from state code
-      const stateName = Object.keys(STATE_CODE_MAPPING).find(
-        (state) => STATE_CODE_MAPPING[state] === stateCode
-      );
 
-      // Check if we have state ID for the new API
-      const stateId = stateName ? STATE_ID_MAPPING[stateName] : null;
+    const maxRetries = 3;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Use GeoDB Rapid API for searching cities
+        let url = `https://wft-geo-db.p.rapidapi.com/v1/geo/cities?countryIds=IN&namePrefix=${encodeURIComponent(query)}&limit=10`;
 
-      // Check if we have local cities for this state (fallback for problematic states)
-      if (stateName && LOCAL_CITIES[stateName]) {
-        console.log(
-          `🏠 Using local cities for ${stateName} (stateCode: ${stateCode})`
-        );
-        const localCities = LOCAL_CITIES[stateName].filter((city) =>
-          city.toLowerCase().includes(query.toLowerCase())
-        );
-        await new Promise((resolve) => setTimeout(resolve, 100)); // Simulate API delay
-        return localCities.slice(0, 10);
-      }
+        // Add state filter if state is selected
+        if (stateCode) {
+          url += `&stateCode=${stateCode}`;
+          console.log(
+            `🔍 Cities API: Filtering by stateCode=${stateCode}, URL: ${url}`
+          );
+        } else {
+          console.log(`🔍 Cities API: No state filter, URL: ${url}`);
+        }
 
-      // Use new cities API if stateName is available (via backend proxy to avoid CORS)
-      if (stateName) {
-        console.log(
-          `🌐 Using new cities API for ${stateName} via backend proxy`
-        );
-        const url = `${import.meta.env.VITE_BACKEND_URI}/api/locations/cities?state=${encodeURIComponent(stateName)}`;
-        console.log(`🔍 Cities API URL (via proxy): ${url}`);
+        const res = await fetch(url, {
+          headers: {
+            "X-RapidAPI-Key": "8acb9381a3mshea3bfd0bb433a6dp197841jsn1a5356656ec7",
+            "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
+          },
+        });
 
-        const res = await fetch(url);
+        if (res.status === 429) {
+          // Rate limit exceeded, retry with exponential backoff
+          if (attempt < maxRetries - 1) {
+            const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+            console.warn(`⚠️ Cities API rate limited (429), retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          } else {
+            throw new Error(`GeoDB API rate limit exceeded after ${maxRetries} attempts`);
+          }
+        }
+
         if (!res.ok) {
-          throw new Error(`Cities API proxy responded with status: ${res.status}`);
+          throw new Error(`GeoDB API responded with status: ${res.status}`);
         }
 
         const responseData = await res.json();
-        console.log(`📡 Cities API Response (via proxy):`, responseData);
+        console.log(`📡 GeoDB Cities API Response:`, responseData);
 
-        // Assume response is an array of cities or has cities in data property
-        const cities = Array.isArray(responseData) ? responseData : responseData.data || responseData.cities || [];
-        if (!Array.isArray(cities)) {
-          console.warn("❌ Cities API returned non-array data:", cities);
-          throw new Error("Invalid response structure");
+        const data = responseData.data || [];
+        if (!Array.isArray(data)) {
+          console.warn("❌ GeoDB Cities API returned non-array data:", data);
+          return [];
         }
 
-        const filteredCities = cities
-          .filter((city) =>
-            city.toLowerCase().includes(query.toLowerCase())
-          )
-          .slice(0, 10);
+        const cities = data
+          .map((city) => city.name || "Unknown City")
+          .filter(Boolean);
 
-        console.log(`🏙️ Filtered cities for ${stateName}:`, filteredCities);
-        return filteredCities;
-      }
-
-      // Fallback to GeoDB API for states without stateId or no state selected
-      let url = `https://wft-geo-db.p.rapidapi.com/v1/geo/cities?countryIds=IN&namePrefix=${query}&limit=10`;
-
-      // Add state filter if state is selected
-      if (stateCode) {
-        url += `&stateCode=${stateCode}`;
-        console.log(
-          `🔍 Cities API: Filtering by stateCode=${stateCode}, URL: ${url}`
-        );
-      } else {
-        console.log(`🔍 Cities API: No state filter, URL: ${url}`);
-      }
-
-      const res = await fetch(url, {
-        headers: {
-          "X-RapidAPI-Key":
-            "8acb9381a3mshea3bfd0bb433a6dp197841jsn1a5356656ec7", // 🔑 Replace with your key
-          "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(`GeoDB API responded with status: ${res.status}`);
-      }
-
-      const responseData = await res.json();
-      console.log(`📡 GeoDB Cities API Response:`, responseData);
-
-      // Handle different possible response structures
-      const data =
-        responseData.data || responseData.cities || responseData.results || [];
-
-      // Ensure data is an array before mapping
-      if (!Array.isArray(data)) {
-        console.warn("❌ GeoDB Cities API returned non-array data:", data);
-        return [];
-      }
-
-      const cities = data
-        .map((city) => {
-          // Handle different city object structures
-          if (typeof city === "string") {
-            return city;
-          }
-          return (
-            city.name ||
-            city.city ||
-            city.cityName ||
-            city.label ||
-            "Unknown City"
-          );
-        })
-        .filter(Boolean); // Remove any undefined/null values
-
-      // Additional validation: if we have a state code, ensure cities actually belong to that state
-      if (stateCode && stateName) {
-        console.log(
-          `🔍 Validating ${cities.length} cities for ${stateName}...`
-        );
-        const validatedCities = cities.filter((city) => {
-          const cityLower = city.toLowerCase();
-          const stateCities = LOCAL_CITIES[stateName]
-            ? LOCAL_CITIES[stateName].map((c) => c.toLowerCase())
-            : [];
-
-          // Check if city exists in our local database for this state
-          const isValidCity = stateCities.some(
-            (localCity) =>
-              cityLower.includes(localCity) || localCity.includes(cityLower)
+        console.log(`🏙️ Filtered cities for stateCode=${stateCode}:`, cities);
+        return cities;
+      } catch (err) {
+        console.error(`❌ Cities API attempt ${attempt + 1} failed:`, err.message);
+        if (attempt === maxRetries - 1) {
+          // Fallback to local cities if all retries fail and we have local data
+          const stateName = Object.keys(LOCAL_CITIES).find(
+            (state) => STATE_CODE_MAPPING[state] === stateCode
           );
 
-          if (!isValidCity) {
-            console.warn(
-              `⚠️ City "${city}" doesn't belong to ${stateName}, filtering out`
+          if (stateName && LOCAL_CITIES[stateName]) {
+            console.log(
+              `🔄 API failed after retries, falling back to local cities for ${stateName}`
             );
+            const localCities = LOCAL_CITIES[stateName].filter((city) =>
+              city.toLowerCase().includes(query.toLowerCase())
+            );
+            return localCities.slice(0, 10);
           }
 
-          return isValidCity;
-        });
-
-        console.log(`✅ Validated cities for ${stateName}:`, validatedCities);
-        return validatedCities;
+          return [];
+        }
       }
-
-      console.log(`🏙️ Filtered cities for stateCode=${stateCode}:`, cities);
-      return cities;
-    } catch (err) {
-      console.error("❌ Cities API failed:", err.message);
-
-      // Fallback to local cities if API fails and we have local data
-      const stateName = Object.keys(LOCAL_CITIES).find(
-        (state) => STATE_CODE_MAPPING[state] === stateCode
-      );
-
-      if (stateName && LOCAL_CITIES[stateName]) {
-        console.log(
-          `🔄 API failed, falling back to local cities for ${stateName}`
-        );
-        const localCities = LOCAL_CITIES[stateName].filter((city) =>
-          city.toLowerCase().includes(query.toLowerCase())
-        );
-        return localCities.slice(0, 10);
-      }
-
-      return [];
     }
   },
 
@@ -528,6 +404,7 @@ const DebouncedAutoComplete = ({
   stateCode = null,
   disabled = false,
   isSelect = false,
+  providedOptions = null,
 }) => {
   const [inputValue, setInputValue] = useState(value || "");
   const [filteredOptions, setFilteredOptions] = useState([]);
@@ -602,7 +479,14 @@ const DebouncedAutoComplete = ({
           `🔍 Fetching ${apiType} for "${searchValue}" with stateCode: "${stateCode}"`
         );
         try {
-          const results = await LOCATION_APIS[apiType](searchValue, stateCode);
+          let results;
+          if (apiType === "companies" && providedOptions) {
+            results = providedOptions.filter(option =>
+              option.toLowerCase().includes(searchValue.toLowerCase())
+            ).slice(0, 10);
+          } else {
+            results = await LOCATION_APIS[apiType](searchValue, stateCode);
+          }
           console.log(
             `✅ Fetched ${results.length} ${apiType} results:`,
             results
@@ -622,7 +506,7 @@ const DebouncedAutoComplete = ({
         setIsLoading(false);
       }
     }, 300),
-    [apiType, stateCode]
+    [apiType, stateCode, providedOptions]
   );
 
   useEffect(() => {
@@ -733,6 +617,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   const docxContainerRef = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [comments, setComments] = useState([""]);
+  const [companies, setCompanies] = useState([]);
 
   // Handle logout
   const handleLogout = () => {
@@ -850,6 +735,23 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       setValue("uploadedBy", user.email);
     }
   }, [mode, user, setValue]);
+
+  // Fetch companies from database
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const response = await getAllCompanies();
+        const companiesData = response.data || [];
+        const companyNames = companiesData.map(c => c.name || c.companyName || c).filter(Boolean).sort();
+        setCompanies(companyNames);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+        // Fallback to static companies
+        setCompanies(INSURANCE_COMPANIES);
+      }
+    };
+    fetchCompanies();
+  }, []);
 
   // Fill form if editing
   useEffect(() => {
@@ -1795,6 +1697,7 @@ const checkCityValidity = async (city, stateName) => {
                         placeholder="Start typing an employer name..."
                         apiType="companies"
                         className={inputClass}
+                        providedOptions={companies}
                       />
                     )}
                   />

@@ -4,6 +4,10 @@ const API = axios.create({
   baseURL: `${import.meta.env.VITE_BACKEND_URI}/admin`, // backend base URL
 });
 
+const MAIN_API = axios.create({
+  baseURL: `${import.meta.env.VITE_BACKEND_URI}`,
+});
+
 // Dashboard stats
 export const getStats = () => API.get("/stats");
 
@@ -21,3 +25,9 @@ export const deleteSubUser = (id) => API.delete(`/sub-users/${id}`);
 
 // Create user API
 export const createUser = (data) => API.post("/create-user", data);
+
+export const getAllCompanies = () => MAIN_API.get("/companies");
+export const getCompanyById = (id) => MAIN_API.get(`/companies/${id}`);
+export const createCompany = (data) => MAIN_API.post("/companies", data);
+export const updateCompany = (id, data) => MAIN_API.put(`/companies/${id}`, data);
+export const deleteCompany = (id) => MAIN_API.delete(`/companies/${id}`);
