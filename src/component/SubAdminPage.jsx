@@ -14,6 +14,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { getAllCompanies } from "../api/adminApi";
 import UserForm from "./Form";
 
 // Department options for filter dropdown - Predefined list of departments for consistent filtering
@@ -118,6 +119,26 @@ const SubAdminPage = () => {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const response = await getAllCompanies();
+
+        const companiesData = response.data || [];
+        const companyNames = companiesData
+          .map(c => c.name)
+          .filter(Boolean)
+          .sort();
+
+        console.log("Company names:", companyNames); // 👀 should show names
+        setCompanies(companyNames);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+      }
+    };
+    fetchCompanies();
+  }, []);
+
   // Fetch all users (without pagination for client-side filtering)
   const fetchUsers = async () => {
     try {
@@ -136,10 +157,6 @@ const SubAdminPage = () => {
 
       setUsers(usersArray);
       setFilteredUsers(usersArray);
-
-      // Extract unique companies from users' currentEmployer
-      const uniqueCompanies = [...new Set(usersArray.map(u => u.currentEmployer).filter(Boolean))].sort();
-      setCompanies(uniqueCompanies);
     } catch (err) {
       setError("Error fetching user data: " + err.message);
       console.error("Fetch error:", err);

@@ -13,71 +13,10 @@ const debounce = (func, delay) => {
   };
 };
 
-// --- START: New Data for Companies ---
-const INSURANCE_COMPANIES = [
-  // Life Insurance
-  "Acko Life Insurance Ltd",
-  "Aditya Birla Sun Life Insurance Co. Ltd",
-  "Ageas Federal Life Insurance Company Limited",
-  "Aviva Life Insurance Company India Limited",
-  "Bajaj Allianz Life Insurance Co. Ltd.",
-  "Bandhan Life Insurance (formerly Aegon Life)",
-  "Canara HSBC Life Insurance Company Limited",
-  "Edelweiss Life Insurance Company Limited",
-  "Future Generali India Life Insurance Company limited",
-  "Go Digit Life Insurance Limited",
-  "HDFC Life Insurance Co. Ltd",
-  "ICICI Prudential Life Insurance Co. Ltd",
-  "IndiaFirst Life Insurance Company Limited",
-  "Kotak Mahindra life Insurance Co. Ltd",
-  "Life Insurance Corporation of India",
-  "PNB MetLife India Insurance Company Limited",
-  "Reliance Nippon Life Insurance Company Limited",
-  "Sahara India Life Insurance Company Limited",
-  "SBI Life Insurance Co. Ltd",
-  "Shriram Life Insurance Company Limited",
-  "Star Union Dai-ichi Life Insurance Company Limited",
-  "TATA AIA Life Insurance Co. Ltd",
-  // General Insurance
-  "Acko General Insurance Ltd",
-  "Agriculture Insurance Company of India Limited",
-  "Bajaj Allianz General Insurance",
-  "Cholamandalam MS General Insurance Company Limited",
-  "ECGC Limited",
-  "Go Digit General Insurance Limited",
-  "HDFC ERGO General Insurance Company Limited",
-  "ICICI Lombard General Insurance",
-  "IFFCO TOKIO General Insurance Company Limited",
-  "Kotak Mahindra General Insurance",
-  "Liberty General Insurance Limited",
-  "Magma HDI General Insurance Company Limited",
-  "National Insurance Company Limited",
-  "Navi General Insurance Limited",
-  "New India Assurance",
-  "Raheja QBE General Insurance Co. Ltd.",
-  "Reliance General Insurance",
-  "Royal Sundaram General Insurance",
-  "SBI General Insurance",
-  "Shriram General Insurance",
-  "Tata AIG General Insurance",
-  "The Oriental Insurance Co",
-  "United India Insurance Co",
-  "Universal Sompo General Insurance",
-  "Zuno General Insurance (formerly Edelweiss)",
-  // Health Insurance
-  "Aditya Birla Health Insurance",
-  "Care Health Insurance",
-  "ManipalCigna Health Insurance",
-  "Niva Bupa Health Insurance",
-  "Star Health & Allied Insurance",
-  "Galaxy Health Insurance Company Limited",
-  "Narayana Health Insurance Ltd",
-  // Insurance Broker
-  "Marsh India Insurance Brokers",
-  "Mahindra Insurance Brokers Ltd",
-  "Policybazaar Insurance Brokers Pvt. Ltd",
-  "Howden Insurance Brokers India Pvt. Ltd",
-];
+// Placeholder for insurance companies (used as fallback)
+const INSURANCE_COMPANIES = [];
+
+
 
 const INDIAN_STATES = [
   "Andhra Pradesh",
@@ -250,7 +189,7 @@ const LOCATION_APIS = {
       const url = `https://wft-geo-db.p.rapidapi.com/v1/geo/countries/IN/states?limit=10&namePrefix=${encodeURIComponent(query)}`;
       const res = await fetch(url, {
         headers: {
-          "X-RapidAPI-Key": "8acb9381a3mshea3bfd0bb433a6dp197841jsn1a5356656ec7",
+          "X-RapidAPI-Key": "13101479d5msh200aeefac521f12p1d43a3jsnbdda36d0645e",
           "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
         },
       });
@@ -378,19 +317,6 @@ const LOCATION_APIS = {
   },
 
   // Companies - using local data
-  companies: async (query) => {
-    if (!query) return [];
-    try {
-      const filteredCompanies = INSURANCE_COMPANIES.filter((company) =>
-        company.toLowerCase().includes(query.toLowerCase())
-      );
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      return filteredCompanies.slice(0, 10);
-    } catch (err) {
-      console.error("❌ Companies filtering failed:", err);
-      return [];
-    }
-  },
 };
 
 // Enhanced Debounced Autocomplete with API Integration
@@ -413,48 +339,66 @@ const DebouncedAutoComplete = ({
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef(null);
 
-  const fetchAllOptions = useCallback(async () => {
-    if (apiType === "cities" && !stateCode) {
-      console.log(`🚫 No state selected for cities select`);
-      setOptions([]);
-      return;
-    }
+const fetchAllOptions = useCallback(async () => {
+  if (apiType === "cities" && !stateCode) {
+    console.log(`🚫 No state selected for cities select`);
+    setOptions([]);
+    return;
+  }
 
-    setIsLoading(true);
-    console.log(
-      `🔍 Fetching all ${apiType} with stateCode: "${stateCode}"`
-    );
-    try {
-      const results = await LOCATION_APIS[apiType]("", stateCode);
-      console.log(
-        `✅ Fetched ${results.length} ${apiType} results:`,
-        results
-      );
-      setOptions(results);
-    } catch (err) {
-      console.error("❌ Fetch all failed:", err.message);
-      setOptions([]);
-    } finally {
-      setIsLoading(false);
+  // Reverse map stateCode to stateName for local data
+  const stateName = Object.keys(STATE_CODE_MAPPING).find(
+    key => STATE_CODE_MAPPING[key] === stateCode
+  );
+
+  setIsLoading(true);
+  console.log(
+    `🔍 Fetching all ${apiType} for stateCode: "${stateCode}" (state: "${stateName}")`
+  );
+
+  try {
+    let results;
+    if (apiType === "cities" && stateName && LOCAL_CITIES[stateName]) {
+      // Use local data for supported states to avoid slow API
+      results = LOCAL_CITIES[stateName];
+      console.log(`✅ Using local cities for ${stateName}: ${results.length} cities`);
+    } else {
+      // For other states, fetch from API (but limit to avoid slowness; note: API may still be slow for large states)
+      results = await LOCATION_APIS[apiType]("", stateCode);
     }
-  }, [apiType, stateCode]);
+    console.log(
+      `✅ Fetched ${results.length} ${apiType} results:`,
+      results.slice(0, 5) // Log first few to avoid console spam
+    );
+    setOptions(results);
+  } catch (err) {
+    console.error("❌ Fetch all failed:", err.message);
+    // Fallback to local if available
+    if (stateName && LOCAL_CITIES[stateName]) {
+      setOptions(LOCAL_CITIES[stateName]);
+    } else {
+      setOptions([]);
+    }
+  } finally {
+    setIsLoading(false);
+  }
+}, [apiType, stateCode]);
 
   // Reset input when value prop changes
   useEffect(() => {
     setInputValue(value || "");
   }, [value]);
 
-  // Reset options when stateCode changes
+  // Preload options when stateCode changes for cities
   useEffect(() => {
     if (apiType === "cities" && stateCode) {
-      if (isSelect) {
-        fetchAllOptions();
-      } else {
-        setFilteredOptions([]);
-        setIsOpen(false);
-      }
+      fetchAllOptions();
+    } else if (apiType === "cities" && !stateCode) {
+      setOptions([]);
+      setFilteredOptions([]);
+      setIsOpen(false);
     }
-  }, [stateCode, apiType, isSelect, fetchAllOptions]);
+  }, [stateCode, apiType, fetchAllOptions]);
 
   // Fetch all options for select mode
   useEffect(() => {
@@ -474,9 +418,24 @@ const DebouncedAutoComplete = ({
       }
 
       if (searchValue && searchValue.length >= 1) {
+        // If we have preloaded options, filter locally first for instant response
+        if (options.length > 0) {
+          const localResults = options.filter(option =>
+            option.toLowerCase().includes(searchValue.toLowerCase())
+          ).slice(0, 10);
+          if (localResults.length > 0) {
+            console.log(`✅ Instant local filter: ${localResults.length} results`);
+            setFilteredOptions(localResults);
+            setIsOpen(true);
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // Fallback to API search if no local match or no preload
         setIsLoading(true);
         console.log(
-          `🔍 Fetching ${apiType} for "${searchValue}" with stateCode: "${stateCode}"`
+          `🔍 API search for ${apiType}: "${searchValue}" with stateCode: "${stateCode}"`
         );
         try {
           let results;
@@ -488,13 +447,13 @@ const DebouncedAutoComplete = ({
             results = await LOCATION_APIS[apiType](searchValue, stateCode);
           }
           console.log(
-            `✅ Fetched ${results.length} ${apiType} results:`,
+            `✅ API fetched ${results.length} ${apiType} results:`,
             results
           );
           setFilteredOptions(results);
           setIsOpen(results.length > 0);
         } catch (err) {
-          console.error("❌ Fetch failed:", err.message);
+          console.error("❌ API fetch failed:", err.message);
           setFilteredOptions([]);
           setIsOpen(false);
         } finally {
@@ -505,8 +464,8 @@ const DebouncedAutoComplete = ({
         setIsOpen(false);
         setIsLoading(false);
       }
-    }, 300),
-    [apiType, stateCode, providedOptions]
+    }, 100), // Further reduced for quicker feel
+    [apiType, stateCode, providedOptions, options]
   );
 
   useEffect(() => {
@@ -737,21 +696,26 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   }, [mode, user, setValue]);
 
   // Fetch companies from database
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        const response = await getAllCompanies();
-        const companiesData = response.data || [];
-        const companyNames = companiesData.map(c => c.name || c.companyName || c).filter(Boolean).sort();
-        setCompanies(companyNames);
-      } catch (err) {
-        console.error("Error fetching companies:", err);
-        // Fallback to static companies
-        setCompanies(INSURANCE_COMPANIES);
-      }
-    };
-    fetchCompanies();
-  }, []);
+useEffect(() => {
+  const fetchCompanies = async () => {
+    try {
+      const response = await getAllCompanies();
+
+      const companiesData = response.data || [];
+      const companyNames = companiesData
+        .map(c => c.name)
+        .filter(Boolean)
+        .sort();
+
+      console.log("Company names:", companyNames); // 👀 should show names
+      setCompanies(companyNames);
+    } catch (err) {
+      console.error("Error fetching companies:", err);
+    }
+  };
+  fetchCompanies();
+}, []);
+
 
   // Fill form if editing
   useEffect(() => {

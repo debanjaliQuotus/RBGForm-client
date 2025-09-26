@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { getAllCompanies } from "../api/adminApi";
 
 // Department options for filter dropdown
 const DEPARTMENT_OPTIONS = [
@@ -48,76 +49,13 @@ const DEPARTMENT_OPTIONS = [
   "Other"
 ];
 
-// Company options for filter dropdown
-const COMPANY_OPTIONS = [
-  // Life Insurance
-  "Acko Life Insurance Ltd",
-  "Aditya Birla Sun Life Insurance Co. Ltd",
-  "Ageas Federal Life Insurance Company Limited",
-  "Aviva Life Insurance Company India Limited",
-  "Bajaj Allianz Life Insurance Co. Ltd.",
-  "Bandhan Life Insurance (formerly Aegon Life)",
-  "Canara HSBC Life Insurance Company Limited",
-  "Edelweiss Life Insurance Company Limited",
-  "Future Generali India Life Insurance Company limited",
-  "Go Digit Life Insurance Limited",
-  "HDFC Life Insurance Co. Ltd",
-  "ICICI Prudential Life Insurance Co. Ltd",
-  "IndiaFirst Life Insurance Company Limited",
-  "Kotak Mahindra life Insurance Co. Ltd",
-  "Life Insurance Corporation of India",
-  "PNB MetLife India Insurance Company Limited",
-  "Reliance Nippon Life Insurance Company Limited",
-  "Sahara India Life Insurance Company Limited",
-  "SBI Life Insurance Co. Ltd",
-  "Shriram Life Insurance Company Limited",
-  "Star Union Dai-ichi Life Insurance Company Limited",
-  "TATA AIA Life Insurance Co. Ltd",
-  // General Insurance
-  "Acko General Insurance Ltd",
-  "Agriculture Insurance Company of India Limited",
-  "Bajaj Allianz General Insurance",
-  "Cholamandalam MS General Insurance Company Limited",
-  "ECGC Limited",
-  "Go Digit General Insurance Limited",
-  "HDFC ERGO General Insurance Company Limited",
-  "ICICI Lombard General Insurance",
-  "IFFCO TOKIO General Insurance Company Limited",
-  "Kotak Mahindra General Insurance",
-  "Liberty General Insurance Limited",
-  "Magma HDI General Insurance Company Limited",
-  "National Insurance Company Limited",
-  "Navi General Insurance Limited",
-  "New India Assurance",
-  "Raheja QBE General Insurance Co. Ltd.",
-  "Reliance General Insurance",
-  "Royal Sundaram General Insurance",
-  "SBI General Insurance",
-  "Shriram General Insurance",
-  "Tata AIG General Insurance",
-  "The Oriental Insurance Co",
-  "United India Insurance Co",
-  "Universal Sompo General Insurance",
-  "Zuno General Insurance (formerly Edelweiss)",
-  // Health Insurance
-  "Aditya Birla Health Insurance",
-  "Care Health Insurance",
-  "ManipalCigna Health Insurance",
-  "Niva Bupa Health Insurance",
-  "Star Health & Allied Insurance",
-  "Galaxy Health Insurance Company Limited",
-  "Narayana Health Insurance Ltd",
-  // Insurance Broker
-  "Marsh India Insurance Brokers",
-  "Mahindra Insurance Brokers Ltd",
-  "Policybazaar Insurance Brokers Pvt. Ltd",
-  "Howden Insurance Brokers India Pvt. Ltd",
-];
+
 
 const SubUserPage = () => {
   const { logout } = useAuth();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -156,6 +94,26 @@ const SubUserPage = () => {
 
   useEffect(() => {
     fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const response = await getAllCompanies();
+
+        const companiesData = response.data || [];
+        const companyNames = companiesData
+          .map(c => c.name)
+          .filter(Boolean)
+          .sort();
+
+        console.log("Company names:", companyNames); // 👀 should show names
+        setCompanies(companyNames);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+      }
+    };
+    fetchCompanies();
   }, []);
 
   // Fetch all users (without pagination for client-side filtering)
@@ -681,7 +639,7 @@ const SubUserPage = () => {
               onChange={(e) => handleFilterChange("companyName", e.target.value)}
             >
               <option value="">All Companies</option>
-              {COMPANY_OPTIONS.map((company) => (
+              {companies.map((company) => (
                 <option key={company} value={company}>
                   {company}
                 </option>

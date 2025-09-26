@@ -173,6 +173,26 @@ const AdminPage = () => {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const response = await getAllCompanies();
+
+        const companiesData = response.data || [];
+        const companyNames = companiesData
+          .map(c => c.name)
+          .filter(Boolean)
+          .sort();
+
+        console.log("Company names:", companyNames); // 👀 should show names
+        setCompanies(companyNames);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+      }
+    };
+    fetchCompanies();
+  }, []);
+
   // Fetch comments for a specific user
   const fetchUserComments = async (userId) => {
     try {
