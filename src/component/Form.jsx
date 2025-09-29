@@ -1158,7 +1158,8 @@ const checkCityValidity = async (city, stateName) => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+     <form onSubmit={handleSubmit(onSubmit)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} className="space-y-4">
+
           {/* Personal Information Section */}
           <div className="bg-white shadow-sm border border-gray-200">
             <div className="px-6 py-3" style={{ backgroundColor: "#B99D54" }}>
