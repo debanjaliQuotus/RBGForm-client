@@ -509,7 +509,23 @@ const SubUserPage = () => {
 
   return (
     <div className="p-3 bg-gray-50 min-h-screen">
-      <div className="bg-white rounded-lg shadow-md border border-gray-200">
+   <div className="fixed top-0 left-0 w-full flex items-center justify-between px-4 py-2 bg-white">
+  <img
+    src="/logo.png"
+    alt="RBG Form Logo"
+    className="h-10 w-auto"
+  />
+  <button
+    onClick={handleLogout}
+    className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center gap-1"
+    title="Logout"
+  >
+    <LogOut className="h-4 w-4" />
+    Logout
+  </button>
+</div>
+
+      <div className="bg-white mt-20 rounded-lg shadow-md border border-gray-200">
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-200 bg-[#1B2951]">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
@@ -524,14 +540,6 @@ const SubUserPage = () => {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <button
-                onClick={handleLogout}
-                className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
-              >
-                <LogOut className="h-3 w-3" />
-                <span className="hidden xs:inline">Logout</span>
-                <span className="xs:hidden">Logout</span>
-              </button>
             </div>
           </div>
         </div>

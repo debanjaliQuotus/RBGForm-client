@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { LogOut } from "lucide-react";
 import { renderAsync } from "docx-preview";
 import { getAllCompanies } from "../api/adminApi";
+import { LOCAL_CITIES } from "../data/cities";
 
 const debounce = (func, delay) => {
   let timer;
@@ -13,9 +14,9 @@ const debounce = (func, delay) => {
   };
 };
 
-
-
-
+// API response caches
+const API_CACHE = new Map();
+const CITY_VALIDITY_CACHE = new Map();
 
 const INDIAN_STATES = [
   "Andhra Pradesh",
@@ -97,98 +98,24 @@ const STATE_CODE_MAPPING = {
 };
 
 
-// Local cities database as fallback for problematic states
-const LOCAL_CITIES = {
-  Odisha: [
-    "Bhubaneswar",
-    "Cuttack",
-    "Rourkela",
-    "Brahmapur",
-    "Sambalpur",
-    "Puri",
-    "Balasore",
-    "Bhadrak",
-    "Baripada",
-    "Jharsuguda",
-    "Jeypore",
-    "Angul",
-    "Dhenkanal",
-    "Kendrapara",
-    "Nayagarh",
-    "Nuapada",
-    "Rayagada",
-    "Sundargarh",
-    "Gajapati",
-    "Kandhamal",
-    "Boudh",
-    "Deogarh",
-    "Jagatsinghpur",
-    "Jajpur",
-    "Kalahandi",
-    "Kendujhar",
-    "Malkangiri",
-    "Nabarangpur",
-    "Subarnapur",
-    "Koraput",
-  ],
-  Karnataka: [
-    "Bangalore",
-    "Bengaluru",
-    "Mysore",
-    "Mysuru",
-    "Hubli",
-    "Dharwad",
-    "Mangalore",
-    "Belgaum",
-    "Belagavi",
-    "Gulbarga",
-    "Kalaburagi",
-    "Davangere",
-    "Bellary",
-    "Ballari",
-    "Bijapur",
-    "Vijayapura",
-    "Shimoga",
-    "Shivamogga",
-    "Tumkur",
-    "Tumakuru",
-    "Raichur",
-    "Bidar",
-    "Hospet",
-    "Gadag",
-    "Betigeri",
-    "Robertsonpet",
-    "KGF",
-    "Hassan",
-    "Chitradurga",
-    "Udupi",
-    "Mandya",
-    "Bhadravati",
-    "Chikmagalur",
-    "Chikkamagaluru",
-    "Kolar",
-    "Bagalkot",
-    "Haveri",
-    "Yadgir",
-    "Chamarajanagar",
-    "Chikkaballapura",
-    "Chikballapur",
-    "Ramanagara",
-    "Kodagu",
-    "Madikeri",
-  ],
-};
 
 // API endpoints for fetching location data
 const LOCATION_APIS = {
   // States of India - using Rapid API (GeoDB)
   states: async (query) => {
     if (!query) return [];
+    const cacheKey = `states-${query}`;
+    if (API_CACHE.has(cacheKey)) {
+      return API_CACHE.get(cacheKey);
+    }
     try {
-      const url = `https://wft-geo-db.p.rapidapi.com/v1/geo/countries/IN/states?limit=10&namePrefix=${encodeURIComponent(query)}`;
+      const url = `https://wft-geo-db.p.rapidapi.com/v1/geo/countries/IN/states?limit=10&namePrefix=${encodeURIComponent(
+        query
+      )}`;
       const res = await fetch(url, {
         headers: {
-          "X-RapidAPI-Key": "13101479d5msh200aeefac521f12p1d43a3jsnbdda36d0645e",
+          "X-RapidAPI-Key":
+            "13101479d5msh200aeefac521f12p1d43a3jsnbdda36d0645e",
           "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
         },
       });
@@ -206,8 +133,8 @@ const LOCATION_APIS = {
         throw new Error("Invalid response structure");
       }
 
-      const states = data.map(state => state.name).slice(0, 10);
-      console.log(`🏛️ Filtered states:`, states);
+      const states = data.map((state) => state.name).slice(0, 10);
+      API_CACHE.set(cacheKey, states);
       return states;
     } catch (err) {
       console.error("❌ States API failed:", err.message);
@@ -216,6 +143,7 @@ const LOCATION_APIS = {
         state.toLowerCase().includes(query.toLowerCase())
       );
       await new Promise((resolve) => setTimeout(resolve, 100));
+      API_CACHE.set(cacheKey, filteredStates.slice(0, 10));
       return filteredStates.slice(0, 10);
     }
   },
@@ -228,20 +156,27 @@ const LOCATION_APIS = {
         (state) => STATE_CODE_MAPPING[state] === stateCode
       );
       if (stateName && LOCAL_CITIES[stateName]) {
-        console.log(`🏙️ All cities for ${stateName} (local):`, LOCAL_CITIES[stateName]);
+        console.log(
+          `🏙️ All cities for ${stateName} (local):`,
+          LOCAL_CITIES[stateName]
+        );
         return LOCAL_CITIES[stateName];
       }
       return [];
     }
-    console.log(
-      `🏙️ Cities API called with query: "${query}", stateCode: "${stateCode}"`
-    );
+
+    const cacheKey = `cities-${query}-${stateCode || 'all'}`;
+    if (API_CACHE.has(cacheKey)) {
+      return API_CACHE.get(cacheKey);
+    }
 
     const maxRetries = 3;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         // Use GeoDB Rapid API for searching cities
-        let url = `https://wft-geo-db.p.rapidapi.com/v1/geo/cities?countryIds=IN&namePrefix=${encodeURIComponent(query)}&limit=10`;
+        let url = `https://wft-geo-db.p.rapidapi.com/v1/geo/cities?countryIds=IN&namePrefix=${encodeURIComponent(
+          query
+        )}&limit=10`;
 
         // Add state filter if state is selected
         if (stateCode) {
@@ -255,7 +190,8 @@ const LOCATION_APIS = {
 
         const res = await fetch(url, {
           headers: {
-            "X-RapidAPI-Key": "8acb9381a3mshea3bfd0bb433a6dp197841jsn1a5356656ec7",
+            "X-RapidAPI-Key":
+              "8acb9381a3mshea3bfd0bb433a6dp197841jsn1a5356656ec7",
             "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
           },
         });
@@ -264,11 +200,15 @@ const LOCATION_APIS = {
           // Rate limit exceeded, retry with exponential backoff
           if (attempt < maxRetries - 1) {
             const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
-            console.warn(`⚠️ Cities API rate limited (429), retrying in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
+            console.warn(
+              `⚠️ Cities API rate limited (429), retrying in ${delay}ms...`
+            );
+            await new Promise((resolve) => setTimeout(resolve, delay));
             continue;
           } else {
-            throw new Error(`GeoDB API rate limit exceeded after ${maxRetries} attempts`);
+            throw new Error(
+              `GeoDB API rate limit exceeded after ${maxRetries} attempts`
+            );
           }
         }
 
@@ -277,7 +217,6 @@ const LOCATION_APIS = {
         }
 
         const responseData = await res.json();
-        console.log(`📡 GeoDB Cities API Response:`, responseData);
 
         const data = responseData.data || [];
         if (!Array.isArray(data)) {
@@ -288,11 +227,13 @@ const LOCATION_APIS = {
         const cities = data
           .map((city) => city.name || "Unknown City")
           .filter(Boolean);
-
-        console.log(`🏙️ Filtered cities for stateCode=${stateCode}:`, cities);
+        API_CACHE.set(cacheKey, cities);
         return cities;
       } catch (err) {
-        console.error(`❌ Cities API attempt ${attempt + 1} failed:`, err.message);
+        console.error(
+          `❌ Cities API attempt ${attempt + 1} failed:`,
+          err.message
+        );
         if (attempt === maxRetries - 1) {
           // Fallback to local cities if all retries fail and we have local data
           const stateName = Object.keys(LOCAL_CITIES).find(
@@ -306,6 +247,7 @@ const LOCATION_APIS = {
             const localCities = LOCAL_CITIES[stateName].filter((city) =>
               city.toLowerCase().includes(query.toLowerCase())
             );
+            API_CACHE.set(cacheKey, localCities.slice(0, 10));
             return localCities.slice(0, 10);
           }
 
@@ -314,8 +256,6 @@ const LOCATION_APIS = {
       }
     }
   },
-
-  // Companies - using local data
 };
 
 // Enhanced Debounced Autocomplete with API Integration
@@ -338,50 +278,52 @@ const DebouncedAutoComplete = ({
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef(null);
 
-const fetchAllOptions = useCallback(async () => {
-  if (apiType === "cities" && !stateCode) {
-    console.log(`🚫 No state selected for cities select`);
-    setOptions([]);
-    return;
-  }
-
-  // Reverse map stateCode to stateName for local data
-  const stateName = Object.keys(STATE_CODE_MAPPING).find(
-    key => STATE_CODE_MAPPING[key] === stateCode
-  );
-
-  setIsLoading(true);
-  console.log(
-    `🔍 Fetching all ${apiType} for stateCode: "${stateCode}" (state: "${stateName}")`
-  );
-
-  try {
-    let results;
-    if (apiType === "cities" && stateName && LOCAL_CITIES[stateName]) {
-      // Use local data for supported states to avoid slow API
-      results = LOCAL_CITIES[stateName];
-      console.log(`✅ Using local cities for ${stateName}: ${results.length} cities`);
-    } else {
-      // For other states, fetch from API (but limit to avoid slowness; note: API may still be slow for large states)
-      results = await LOCATION_APIS[apiType]("", stateCode);
-    }
-    console.log(
-      `✅ Fetched ${results.length} ${apiType} results:`,
-      results.slice(0, 5) // Log first few to avoid console spam
-    );
-    setOptions(results);
-  } catch (err) {
-    console.error("❌ Fetch all failed:", err.message);
-    // Fallback to local if available
-    if (stateName && LOCAL_CITIES[stateName]) {
-      setOptions(LOCAL_CITIES[stateName]);
-    } else {
+  const fetchAllOptions = useCallback(async () => {
+    if (apiType === "cities" && !stateCode) {
+      console.log(`🚫 No state selected for cities select`);
       setOptions([]);
+      return;
     }
-  } finally {
-    setIsLoading(false);
-  }
-}, [apiType, stateCode]);
+
+    // Reverse map stateCode to stateName for local data
+    const stateName = Object.keys(STATE_CODE_MAPPING).find(
+      (key) => STATE_CODE_MAPPING[key] === stateCode
+    );
+
+    setIsLoading(true);
+    console.log(
+      `🔍 Fetching all ${apiType} for stateCode: "${stateCode}" (state: "${stateName}")`
+    );
+
+    try {
+      let results;
+      if (apiType === "cities" && stateName && LOCAL_CITIES[stateName]) {
+        // Use local data for supported states to avoid slow API
+        results = LOCAL_CITIES[stateName];
+        console.log(
+          `✅ Using local cities for ${stateName}: ${results.length} cities`
+        );
+      } else {
+        // For other states, fetch from API (but limit to avoid slowness; note: API may still be slow for large states)
+        results = await LOCATION_APIS[apiType]("", stateCode);
+      }
+      console.log(
+        `✅ Fetched ${results.length} ${apiType} results:`,
+        results.slice(0, 5) // Log first few to avoid console spam
+      );
+      setOptions(results);
+    } catch (err) {
+      console.error("❌ Fetch all failed:", err.message);
+      // Fallback to local if available
+      if (stateName && LOCAL_CITIES[stateName]) {
+        setOptions(LOCAL_CITIES[stateName]);
+      } else {
+        setOptions([]);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [apiType, stateCode]);
 
   // Reset input when value prop changes
   useEffect(() => {
@@ -419,11 +361,15 @@ const fetchAllOptions = useCallback(async () => {
       if (searchValue && searchValue.length >= 1) {
         // If we have preloaded options, filter locally first for instant response
         if (options.length > 0) {
-          const localResults = options.filter(option =>
-            option.toLowerCase().includes(searchValue.toLowerCase())
-          ).slice(0, 10);
+          const localResults = options
+            .filter((option) =>
+              option.toLowerCase().includes(searchValue.toLowerCase())
+            )
+            .slice(0, 10);
           if (localResults.length > 0) {
-            console.log(`✅ Instant local filter: ${localResults.length} results`);
+            console.log(
+              `✅ Instant local filter: ${localResults.length} results`
+            );
             setFilteredOptions(localResults);
             setIsOpen(true);
             setIsLoading(false);
@@ -439,9 +385,11 @@ const fetchAllOptions = useCallback(async () => {
         try {
           let results;
           if (apiType === "companies" && providedOptions) {
-            results = providedOptions.filter(option =>
-              option.toLowerCase().includes(searchValue.toLowerCase())
-            ).slice(0, 10);
+            results = providedOptions
+              .filter((option) =>
+                option.toLowerCase().includes(searchValue.toLowerCase())
+              )
+              .slice(0, 10);
           } else {
             results = await LOCATION_APIS[apiType](searchValue, stateCode);
           }
@@ -508,7 +456,9 @@ const fetchAllOptions = useCallback(async () => {
           }`}
           disabled={isDisabled}
         >
-          <option value="">{isDisabled ? "Select state first" : placeholder}</option>
+          <option value="">
+            {isDisabled ? "Select state first" : placeholder}
+          </option>
           {options.map((option, index) => (
             <option key={index} value={option}>
               {option}
@@ -590,7 +540,9 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       const formId = initialData.id || initialData._id;
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URI}/forms/${formId}/comments/${index}`,
+          `${
+            import.meta.env.VITE_BACKEND_URI
+          }/forms/${formId}/comments/${index}`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -601,14 +553,18 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
           throw new Error(`Failed to update comment: ${response.status}`);
         }
         // Update local state
-        setComments(comments.map((c, i) => (i === index ? { ...c, text: value } : c)));
+        setComments(
+          comments.map((c, i) => (i === index ? { ...c, text: value } : c))
+        );
       } catch (error) {
         console.error("Error updating comment:", error);
         alert("Failed to update comment. Please try again.");
       }
     } else {
       // New comment or add mode, update local state only
-      setComments(comments.map((c, i) => (i === index ? { ...c, text: value } : c)));
+      setComments(
+        comments.map((c, i) => (i === index ? { ...c, text: value } : c))
+      );
     }
   };
   const removeComment = async (index) => {
@@ -618,7 +574,9 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       const formId = initialData.id || initialData._id;
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URI}/forms/${formId}/comments/${index}`,
+          `${
+            import.meta.env.VITE_BACKEND_URI
+          }/forms/${formId}/comments/${index}`,
           {
             method: "DELETE",
           }
@@ -638,7 +596,16 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
     }
   };
 
-  const { control, handleSubmit, setValue, watch, reset, setError, clearErrors, formState: { errors } } = useForm({
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    setError,
+    clearErrors,
+    formState: { errors },
+  } = useForm({
     defaultValues: {
       uploadedBy: "",
       uploadDate: "",
@@ -698,9 +665,14 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   useEffect(() => {
     const validateCurrentCity = async () => {
       if (currentCityValue && currentStateValue) {
-        const isValid = await checkCityValidity(currentCityValue, currentStateValue);
+        const isValid = await checkCityValidity(
+          currentCityValue,
+          currentStateValue
+        );
         if (!isValid) {
-          setError("currentCity", { message: "The selected city is not included in the specific state." });
+          setError("currentCity", {
+            message: "The selected city is not included in the specific state.",
+          });
         } else {
           clearErrors("currentCity");
         }
@@ -715,9 +687,14 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   useEffect(() => {
     const validatePreferredCity = async () => {
       if (preferredCityValue && preferredStateValue) {
-        const isValid = await checkCityValidity(preferredCityValue, preferredStateValue);
+        const isValid = await checkCityValidity(
+          preferredCityValue,
+          preferredStateValue
+        );
         if (!isValid) {
-          setError("preferredCity", { message: "The selected city is not included in the specific state." });
+          setError("preferredCity", {
+            message: "The selected city is not included in the specific state.",
+          });
         } else {
           clearErrors("preferredCity");
         }
@@ -745,26 +722,25 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   }, [mode, user, setValue]);
 
   // Fetch companies from database
-useEffect(() => {
-  const fetchCompanies = async () => {
-    try {
-      const response = await getAllCompanies();
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const response = await getAllCompanies();
 
-      const companiesData = response.data || [];
-      const companyNames = companiesData
-        .map(c => c.name)
-        .filter(Boolean)
-        .sort();
+        const companiesData = response.data || [];
+        const companyNames = companiesData
+          .map((c) => c.name)
+          .filter(Boolean)
+          .sort();
 
-      console.log("Company names:", companyNames); // 👀 should show names
-      setCompanies(companyNames);
-    } catch (err) {
-      console.error("Error fetching companies:", err);
-    }
-  };
-  fetchCompanies();
-}, []);
-
+        console.log("Company names:", companyNames); // 👀 should show names
+        setCompanies(companyNames);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+      }
+    };
+    fetchCompanies();
+  }, []);
 
   // Fill form if editing
   useEffect(() => {
@@ -816,7 +792,9 @@ useEffect(() => {
         Array.isArray(initialData.comments) &&
         initialData.comments.length > 0
       ) {
-        setComments(initialData.comments.map((c) => ({ id: c.id, text: c.text || "" })));
+        setComments(
+          initialData.comments.map((c) => ({ id: c.id, text: c.text || "" }))
+        );
       } else {
         setComments([{ id: null, text: "" }]);
       }
@@ -864,36 +842,48 @@ useEffect(() => {
     }
   }, [documentFile]);
 
-const checkCityValidity = async (city, stateName) => {
-  if (!city || !stateName) return true;
+  const checkCityValidity = async (city, stateName) => {
+    if (!city || !stateName) return true;
 
-  const stateCode = STATE_CODE_MAPPING[stateName];
-  try {
-    console.log(`🔍 Validating city "${city}" for state "${stateName}" (code: ${stateCode})`);
-    // Search for the specific city within the state
-    const matchingCities = await LOCATION_APIS.cities(city, stateCode);
-    console.log(`📡 Matching cities found:`, matchingCities);
-    
-    const isValid = matchingCities.some(
-      (c) => c.toLowerCase() === city.toLowerCase()
-    );
-    console.log(`✅ City validation result for "${city}" in "${stateName}": ${isValid}`);
-    return isValid;
-  } catch (e) {
-    console.error("City validation failed:", e);
-
-    // ✅ Fallback to local cities list
-    if (LOCAL_CITIES[stateName]) {
-      return LOCAL_CITIES[stateName].some(
-        (c) => c.toLowerCase() === city.toLowerCase()
-      );
+    const cacheKey = `${city}-${stateName}`;
+    if (CITY_VALIDITY_CACHE.has(cacheKey)) {
+      return CITY_VALIDITY_CACHE.get(cacheKey);
     }
 
-    // Strict: If we can’t verify, reject it
-    return false;
-  }
-};
+    const stateCode = STATE_CODE_MAPPING[stateName];
+    try {
+      console.log(
+        `🔍 Validating city "${city}" for state "${stateName}" (code: ${stateCode})`
+      );
+      // Search for the specific city within the state
+      const matchingCities = await LOCATION_APIS.cities(city, stateCode);
+      console.log(`📡 Matching cities found:`, matchingCities);
 
+      const isValid = matchingCities.some(
+        (c) => c.toLowerCase() === city.toLowerCase()
+      );
+      CITY_VALIDITY_CACHE.set(cacheKey, isValid);
+      console.log(
+        `✅ City validation result for "${city}" in "${stateName}": ${isValid}`
+      );
+      return isValid;
+    } catch (e) {
+      console.error("City validation failed:", e);
+
+      // ✅ Fallback to local cities list
+      if (LOCAL_CITIES[stateName]) {
+        const isValid = LOCAL_CITIES[stateName].some(
+          (c) => c.toLowerCase() === city.toLowerCase()
+        );
+        CITY_VALIDITY_CACHE.set(cacheKey, isValid);
+        return isValid;
+      }
+
+      CITY_VALIDITY_CACHE.set(cacheKey, false);
+      // Strict: If we can’t verify, reject it
+      return false;
+    }
+  };
 
   const onSubmit = async (data) => {
     let hasError = false;
@@ -904,7 +894,9 @@ const checkCityValidity = async (city, stateName) => {
       data.alternateContactNo &&
       data.contactNo === data.alternateContactNo
     ) {
-      setError("alternateContactNo", { message: "Alternate contact cannot be the same as primary." });
+      setError("alternateContactNo", {
+        message: "Alternate contact cannot be the same as primary.",
+      });
       hasError = true;
     }
     if (
@@ -912,32 +904,38 @@ const checkCityValidity = async (city, stateName) => {
       data.alternateMailId &&
       data.mailId === data.alternateMailId
     ) {
-      setError("alternateMailId", { message: "Alternate email cannot be the same as primary." });
+      setError("alternateMailId", {
+        message: "Alternate email cannot be the same as primary.",
+      });
       hasError = true;
     }
 
     // Check if current city is valid for the selected state
-   if (data.currentCity && data.currentState) {
-  const isValid = await checkCityValidity(
-    data.currentCity,
-    data.currentState
-  );
+    if (data.currentCity && data.currentState) {
+      const isValid = await checkCityValidity(
+        data.currentCity,
+        data.currentState
+      );
 
-  if (!isValid) {
-    setError("currentCity", {
-      type: "manual",
-      message: "❌ The selected city does not belong to the chosen state.",
-    });
-    hasError = true;
-  }
-}
-
+      if (!isValid) {
+        setError("currentCity", {
+          type: "manual",
+          message: "❌ The selected city does not belong to the chosen state.",
+        });
+        hasError = true;
+      }
+    }
 
     // Check if preferred city is valid for the selected state
     if (data.preferredCity && data.preferredState) {
-      const isValid = await checkCityValidity(data.preferredCity, data.preferredState);
+      const isValid = await checkCityValidity(
+        data.preferredCity,
+        data.preferredState
+      );
       if (!isValid) {
-        setError("preferredCity", { message: "The selected city is not included in the specific state." });
+        setError("preferredCity", {
+          message: "The selected city is not included in the specific state.",
+        });
         hasError = true;
       }
     }
@@ -978,7 +976,7 @@ const checkCityValidity = async (city, stateName) => {
       ];
 
       // Handle total experience - now it's a single field
-      if (data.totalExperience && typeof data.totalExperience === 'string') {
+      if (data.totalExperience && typeof data.totalExperience === "string") {
         // The value is already in the correct format from the dropdown
         // Just ensure it ends with a space if needed
         data.totalExperience = data.totalExperience.trim();
@@ -1137,7 +1135,19 @@ const checkCityValidity = async (city, stateName) => {
       className="min-h-screen py-8 px-4"
       style={{ backgroundColor: "#f0f2f8" }}
     >
-      <div className="max-w-6xl mx-auto">
+      <div className="fixed top-0 left-0 w-full flex items-center justify-between px-4 py-2 bg-white">
+        <img src="/logo.png" alt="RBG Form Logo" className="h-10 w-auto" />
+        <button
+          onClick={handleLogout}
+          className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center gap-1"
+          title="Logout"
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </button>
+      </div>
+
+      <div className="max-w-6xl mt-10 mx-auto">
         <div className="bg-white shadow-sm border border-gray-200 mb-2">
           <div className="px-6 py-2" style={{ backgroundColor: "#1B2951" }}>
             <div className="flex justify-between items-center">
@@ -1146,19 +1156,11 @@ const checkCityValidity = async (city, stateName) => {
                   ? "Edit User Information"
                   : "User Information Form"}
               </h1>
-              <button
-                onClick={handleLogout}
-                className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center gap-1"
-                title="Logout"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
             </div>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} className="space-y-4">
           {/* Personal Information Section */}
           <div className="bg-white shadow-sm border border-gray-200">
             <div className="px-6 py-3" style={{ backgroundColor: "#B99D54" }}>
@@ -1567,8 +1569,14 @@ const checkCityValidity = async (city, stateName) => {
                           rules={{
                             validate: async (value) => {
                               if (!value) return true;
-                              return await checkCityValidity(value, currentStateValue) || "Please select a valid city for the selected state";
-                            }
+                              return (
+                                (await checkCityValidity(
+                                  value,
+                                  currentStateValue
+                                )) ||
+                                "Please select a valid city for the selected state"
+                              );
+                            },
                           }}
                           render={({ field }) => (
                             <DebouncedAutoComplete
@@ -1588,10 +1596,16 @@ const checkCityValidity = async (city, stateName) => {
                                 const stateCode =
                                   STATE_CODE_MAPPING[currentStateValue] || null;
                                 console.log(
-                                  "Current State: " + currentStateValue + ", StateCode: " + stateCode
+                                  "Current State: " +
+                                    currentStateValue +
+                                    ", StateCode: " +
+                                    stateCode
                                 );
                                 console.log(
-                                  "STATE_CODE_MAPPING[" + currentStateValue + "] = " + stateCode
+                                  "STATE_CODE_MAPPING[" +
+                                    currentStateValue +
+                                    "] = " +
+                                    stateCode
                                 );
                               }}
                               disabled={!currentStateValue}
@@ -1636,8 +1650,14 @@ const checkCityValidity = async (city, stateName) => {
                           rules={{
                             validate: async (value) => {
                               if (!value) return true;
-                              return await checkCityValidity(value, preferredStateValue) || "Please select a valid city for the selected state";
-                            }
+                              return (
+                                (await checkCityValidity(
+                                  value,
+                                  preferredStateValue
+                                )) ||
+                                "Please select a valid city for the selected state"
+                              );
+                            },
                           }}
                           render={({ field }) => (
                             <DebouncedAutoComplete
@@ -1658,10 +1678,16 @@ const checkCityValidity = async (city, stateName) => {
                                   STATE_CODE_MAPPING[preferredStateValue] ||
                                   null;
                                 console.log(
-                                  "Preferred State: " + preferredStateValue + ", StateCode: " + stateCode
+                                  "Preferred State: " +
+                                    preferredStateValue +
+                                    ", StateCode: " +
+                                    stateCode
                                 );
                                 console.log(
-                                  "STATE_CODE_MAPPING[" + preferredStateValue + "] = " + stateCode
+                                  "STATE_CODE_MAPPING[" +
+                                    preferredStateValue +
+                                    "] = " +
+                                    stateCode
                                 );
                               }}
                               disabled={!preferredStateValue}
@@ -1914,7 +1940,9 @@ const checkCityValidity = async (city, stateName) => {
                 <div key={index} className="flex items-center space-x-2">
                   <input
                     value={comment.text}
-                    onChange={async (e) => await updateComment(index, e.target.value)}
+                    onChange={async (e) =>
+                      await updateComment(index, e.target.value)
+                    }
                     type="text"
                     placeholder={`Enter comment ${
                       index + 1

@@ -55,8 +55,6 @@ const DEPARTMENT_OPTIONS = [
   "Other",
 ];
 
-
-
 const SubAdminPage = () => {
   const { logout } = useAuth();
   const [users, setUsers] = useState([]);
@@ -126,7 +124,7 @@ const SubAdminPage = () => {
 
         const companiesData = response.data || [];
         const companyNames = companiesData
-          .map(c => c.name)
+          .map((c) => c.name)
           .filter(Boolean)
           .sort();
 
@@ -396,30 +394,35 @@ const SubAdminPage = () => {
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/download-file`,
         {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
 
       if (!response.ok) {
-        throw new Error('Failed to download file');
+        throw new Error("Failed to download file");
       }
 
       const blob = await response.blob();
-      const contentType = response.headers.get('content-type');
-      let extension = 'pdf';
-      if (contentType === 'application/pdf') {
-        extension = 'pdf';
-      } else if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        extension = 'docx';
-      } else if (contentType === 'application/msword') {
-        extension = 'doc';
+      const contentType = response.headers.get("content-type");
+      let extension = "pdf";
+      if (contentType === "application/pdf") {
+        extension = "pdf";
+      } else if (
+        contentType ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        extension = "docx";
+      } else if (contentType === "application/msword") {
+        extension = "doc";
       }
-      const downloadName = fileName ? fileName.replace(/\.pdf$/, `.${extension}`) : `resume_${userId}.${extension}`;
+      const downloadName = fileName
+        ? fileName.replace(/\.pdf$/, `.${extension}`)
+        : `resume_${userId}.${extension}`;
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = downloadName;
       document.body.appendChild(a);
@@ -427,13 +430,13 @@ const SubAdminPage = () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Download error:', error);
-      alert('Failed to download resume: ' + error.message);
+      console.error("Download error:", error);
+      alert("Failed to download resume: " + error.message);
     }
   };
 
   // Fixed Excel export with current filters
- const handleExportExcel = async () => {
+  const handleExportExcel = async () => {
     try {
       const params = new URLSearchParams();
 
@@ -464,16 +467,18 @@ const SubAdminPage = () => {
       });
 
       // 👇 send query params in the request
-     const response = await fetch(
-  `${import.meta.env.VITE_BACKEND_URI}/forms/download/export-excel?${params.toString()}`,
-  {
-    method: "GET",
-    headers: {
-      Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    },
-  }
-);
-
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_BACKEND_URI
+        }/forms/download/export-excel?${params.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            Accept:
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -613,9 +618,21 @@ const SubAdminPage = () => {
 
   return (
     <div className="p-3 bg-gray-50 min-h-screen">
-      <div className="bg-white rounded-lg shadow-md border border-gray-200">
+      <div className="fixed top-0 left-0 w-full flex items-center justify-between px-4 py-2 bg-white">
+        <img src="/logo.png" alt="RBG Form Logo" className="h-10 w-auto" />
+        <button
+          onClick={handleLogout}
+          className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center gap-1"
+          title="Logout"
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </button>
+      </div>
+
+      <div className="bg-white mt-20 rounded-lg shadow-md border border-gray-200">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200 bg-[#1B2951]">
+        <div className="px-4 py-3  border-b border-gray-200 bg-[#1B2951]">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div className="min-w-0 flex-1">
               <h1 className="text-lg font-semibold text-white">
@@ -643,14 +660,6 @@ const SubAdminPage = () => {
                 <FileSpreadsheet className="h-3 w-3" />
                 <span className="hidden xs:inline">Export Excel</span>
                 <span className="xs:hidden">Export</span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
-              >
-                <LogOut className="h-3 w-3" />
-                <span className="hidden xs:inline">Logout</span>
-                <span className="xs:hidden">Logout</span>
               </button>
             </div>
           </div>

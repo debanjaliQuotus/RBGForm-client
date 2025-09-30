@@ -57,8 +57,6 @@ const DEPARTMENT_OPTIONS = [
   "Other",
 ];
 
-
-
 const AdminPage = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -134,12 +132,17 @@ const AdminPage = () => {
       try {
         const response = await getAllCompanies();
         const companiesData = response.data || [];
-        const companyNames = companiesData.map(c => c.name || c.companyName || c).filter(Boolean).sort();
+        const companyNames = companiesData
+          .map((c) => c.name || c.companyName || c)
+          .filter(Boolean)
+          .sort();
         setCompanies(companyNames);
       } catch (err) {
         console.error("Error fetching companies:", err);
         // Fallback to extracting from users
-        const uniqueCompanies = [...new Set(usersArray.map(u => u.currentEmployer).filter(Boolean))].sort();
+        const uniqueCompanies = [
+          ...new Set(usersArray.map((u) => u.currentEmployer).filter(Boolean)),
+        ].sort();
         setCompanies(uniqueCompanies);
       }
 
@@ -180,7 +183,7 @@ const AdminPage = () => {
 
         const companiesData = response.data || [];
         const companyNames = companiesData
-          .map(c => c.name)
+          .map((c) => c.name)
           .filter(Boolean)
           .sort();
 
@@ -374,8 +377,12 @@ const AdminPage = () => {
         const age = calculateAge(user.dateOfBirth);
         if (!age) return false; // Skip users without valid date of birth
 
-        const minAge = currentFilters.ageMin ? parseInt(currentFilters.ageMin) : 20;
-        const maxAge = currentFilters.ageMax ? parseInt(currentFilters.ageMax) : 60;
+        const minAge = currentFilters.ageMin
+          ? parseInt(currentFilters.ageMin)
+          : 20;
+        const maxAge = currentFilters.ageMax
+          ? parseInt(currentFilters.ageMax)
+          : 60;
 
         return age >= minAge && age <= maxAge;
       });
@@ -509,7 +516,7 @@ const AdminPage = () => {
   };
 
   // Fixed Excel export with current filters
-const handleExportExcel = async () => {
+  const handleExportExcel = async () => {
     try {
       const params = new URLSearchParams();
 
@@ -540,16 +547,18 @@ const handleExportExcel = async () => {
       });
 
       // 👇 send query params in the request
-     const response = await fetch(
-  `${import.meta.env.VITE_BACKEND_URI}/forms/download/export-excel?${params.toString()}`,
-  {
-    method: "GET",
-    headers: {
-      Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    },
-  }
-);
-
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_BACKEND_URI
+        }/forms/download/export-excel?${params.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            Accept:
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -595,35 +604,40 @@ const handleExportExcel = async () => {
   };
 
   // Download resume function
-   const handleDownloadResume = async (userId, fileName) => {
+  const handleDownloadResume = async (userId, fileName) => {
     try {
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_URI}/forms/${userId}/download-file`,
         {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
 
       if (!response.ok) {
-        throw new Error('Failed to download file');
+        throw new Error("Failed to download file");
       }
 
       const blob = await response.blob();
-      const contentType = response.headers.get('content-type');
-      let extension = 'pdf';
-      if (contentType === 'application/pdf') {
-        extension = 'pdf';
-      } else if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        extension = 'docx';
-      } else if (contentType === 'application/msword') {
-        extension = 'doc';
+      const contentType = response.headers.get("content-type");
+      let extension = "pdf";
+      if (contentType === "application/pdf") {
+        extension = "pdf";
+      } else if (
+        contentType ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        extension = "docx";
+      } else if (contentType === "application/msword") {
+        extension = "doc";
       }
-      const downloadName = fileName ? fileName.replace(/\.pdf$/, `.${extension}`) : `resume_${userId}.${extension}`;
+      const downloadName = fileName
+        ? fileName.replace(/\.pdf$/, `.${extension}`)
+        : `resume_${userId}.${extension}`;
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = downloadName;
       document.body.appendChild(a);
@@ -631,8 +645,8 @@ const handleExportExcel = async () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Download error:', error);
-      alert('Failed to download resume: ' + error.message);
+      console.error("Download error:", error);
+      alert("Failed to download resume: " + error.message);
     }
   };
 
@@ -662,7 +676,19 @@ const handleExportExcel = async () => {
 
   return (
     <div className="p-2 sm:p-3 lg:p-4 bg-gray-50 min-h-screen">
-      <div className="bg-white rounded-lg shadow-md border border-gray-200">
+      <div className="fixed top-0 left-0 w-full flex items-center justify-between px-4 py-2 bg-white">
+        <img src="/logo.png" alt="RBG Form Logo" className="h-10 w-auto" />
+        <button
+          onClick={handleLogout}
+          className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center gap-1"
+          title="Logout"
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </button>
+      </div>
+
+      <div className="bg-white mt-20 rounded-lg shadow-md border border-gray-200">
         {/* Header */}
         <div className="px-3 sm:px-4 lg:px-6 py-3 border-b border-gray-200 bg-[#1B2951]">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
@@ -700,14 +726,6 @@ const handleExportExcel = async () => {
                 <FileSpreadsheet className="h-3 w-3" />
                 <span className="hidden xs:inline">Export Excel</span>
                 <span className="xs:hidden">Export</span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
-              >
-                <LogOut className="h-3 w-3" />
-                <span className="hidden xs:inline">Logout</span>
-                <span className="xs:hidden">Logout</span>
               </button>
             </div>
           </div>
@@ -770,14 +788,14 @@ const handleExportExcel = async () => {
             </select>
             {/* CTC Range - Min and Max */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-600 mb-1">CTC Range</label>
+              <label className="block text-xs text-gray-600 mb-1">
+                CTC Range
+              </label>
               <div className="grid grid-cols-2 gap-1">
                 <select
                   className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
                   value={filters.ctcMin || ""}
-                  onChange={(e) =>
-                    handleFilterChange("ctcMin", e.target.value)
-                  }
+                  onChange={(e) => handleFilterChange("ctcMin", e.target.value)}
                 >
                   <option value="">Min CTC</option>
                   {Array.from({ length: 400 }, (_, i) => {
@@ -793,9 +811,7 @@ const handleExportExcel = async () => {
                 <select
                   className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
                   value={filters.ctcMax || ""}
-                  onChange={(e) =>
-                    handleFilterChange("ctcMax", e.target.value)
-                  }
+                  onChange={(e) => handleFilterChange("ctcMax", e.target.value)}
                 >
                   <option value="">Max CTC</option>
                   {Array.from({ length: 400 }, (_, i) => {
@@ -812,7 +828,9 @@ const handleExportExcel = async () => {
             </div>
             {/* Age Range - Min and Max */}
             <div className="col-span-1">
-              <label className="block text-xs text-gray-600 mb-1">Age Range</label>
+              <label className="block text-xs text-gray-600 mb-1">
+                Age Range
+              </label>
               <div className="grid grid-cols-2 gap-1">
                 <select
                   className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-[#1B2951] focus:border-[#1B2951] w-full"
@@ -1048,13 +1066,19 @@ const handleExportExcel = async () => {
                       Department: {user.department}
                     </div>
                     <div className="text-sm text-[#1B2951]">
-                      CTC: ₹{user.ctcInLakhs || 'N/A'} Lakhs
+                      CTC: ₹{user.ctcInLakhs || "N/A"} Lakhs
                     </div>
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-center">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#B99D54]/20 text-[#1B2951] border border-[#B99D54]/30">
-                        {user.totalExperience ? `${user.totalExperience} ${parseInt(user.totalExperience) === 1 ? 'year' : 'years'}` : 'N/A'}
+                        {user.totalExperience
+                          ? `${user.totalExperience} ${
+                              parseInt(user.totalExperience) === 1
+                                ? "year"
+                                : "years"
+                            }`
+                          : "N/A"}
                       </span>
                     </div>
                   </td>
