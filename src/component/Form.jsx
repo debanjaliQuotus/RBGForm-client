@@ -1160,7 +1160,12 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
           </div>
         </div>
 
+<<<<<<< HEAD
         <form onSubmit={handleSubmit(onSubmit)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} className="space-y-4">
+=======
+     <form onSubmit={handleSubmit(onSubmit)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} className="space-y-4">
+
+>>>>>>> 68b98f9438809faad37741116697f7362b89ff80
           {/* Personal Information Section */}
           <div className="bg-white shadow-sm border border-gray-200">
             <div className="px-6 py-3" style={{ backgroundColor: "#B99D54" }}>
