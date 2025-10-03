@@ -11,8 +11,7 @@ import {
   MessageSquare,
   Edit,
   Download,
-  FileSpreadsheet,
-} from "lucide-react";
+ } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { getAllCompanies } from "../api/adminApi";
 import UserForm from "./Form";
@@ -435,73 +434,7 @@ const SubAdminPage = () => {
     }
   };
 
-  // Fixed Excel export with current filters
-  const handleExportExcel = async () => {
-    try {
-      const params = new URLSearchParams();
 
-      const filterMapping = {
-        ctcMin: "ctcInLakhs", // ✅ backend expects "ctcInLakhs"
-        experienceMin: "minExperience",
-        experienceMax: "maxExperience",
-        ageMin: "minAge",
-        ageMax: "maxAge",
-        search: "search",
-        gender: "gender",
-        currentState: "currentState",
-        preferredState: "preferredState",
-        currentCity: "currentCity",
-        preferredCity: "preferredCity",
-        designation: "designation",
-        department: "department",
-        companyName: "currentEmployer",
-        uploadedBy: "uploadedBy", // if needed
-        startDate: "startDate", // if date filters are in frontend
-        endDate: "endDate",
-      };
-
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value && filterMapping[key]) {
-          params.append(filterMapping[key], value);
-        }
-      });
-
-      // 👇 send query params in the request
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_BACKEND_URI
-        }/forms/download/export-excel?${params.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            Accept:
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          `Export failed: ${response.status} ${response.statusText}`
-        );
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `users_export_${
-        new Date().toISOString().split("T")[0]
-      }.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Export error:", err);
-      alert("Failed to export Excel file: " + err.message);
-    }
-  };
 
   // Fetch comments for a specific user
   const fetchUserComments = async (userId) => {
@@ -652,14 +585,6 @@ const SubAdminPage = () => {
                 <Plus className="h-3 w-3" />
                 <span className="hidden xs:inline">Add User</span>
                 <span className="xs:hidden">Add</span>
-              </button>
-              <button
-                onClick={handleExportExcel}
-                className="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors flex items-center justify-center gap-1 w-full sm:w-auto"
-              >
-                <FileSpreadsheet className="h-3 w-3" />
-                <span className="hidden xs:inline">Export Excel</span>
-                <span className="xs:hidden">Export</span>
               </button>
             </div>
           </div>

@@ -1,10 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { useForm, Controller } from "react-hook-form";
+import PropTypes from "prop-types";
 import { useAuth } from "../context/AuthContext";
 import { LogOut } from "lucide-react";
 import { renderAsync } from "docx-preview";
 import { getAllCompanies } from "../api/adminApi";
 import { LOCAL_CITIES } from "../data/cities";
+import {
+  LOCATION_APIS,
+  STATE_CODE_MAPPING,
+  checkCityValidity,
+} from "../utils/locationApi";
 
 const debounce = (func, delay) => {
   let timer;
@@ -14,510 +20,311 @@ const debounce = (func, delay) => {
   };
 };
 
-// API response caches
-const API_CACHE = new Map();
-const CITY_VALIDITY_CACHE = new Map();
+const DebouncedAutoComplete = memo(
+  ({
+    name,
+    value,
+    onChange,
+    placeholder,
+    apiType,
+    className,
+    stateCode = null,
+    disabled = false,
+    isSelect = false,
+    providedOptions = null,
+  }) => {
+    const [inputValue, setInputValue] = useState(value || "");
+    const [filteredOptions, setFilteredOptions] = useState([]);
+    const [options, setOptions] = useState([]);
+    const [isOpen, setIsOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const containerRef = useRef(null);
+    const abortControllerRef = useRef(null);
 
-const INDIAN_STATES = [
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chhattisgarh",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-  "Andaman and Nicobar Islands",
-  "Chandigarh",
-  "Dadra and Nagar Haveli and Daman and Diu",
-  "Delhi",
-  "Jammu and Kashmir",
-  "Ladakh",
-  "Lakshadweep",
-  "Puducherry",
-];
-
-// State to state code mapping for API calls
-const STATE_CODE_MAPPING = {
-  "Andhra Pradesh": "AP",
-  "Arunachal Pradesh": "AR",
-  Assam: "AS",
-  Bihar: "BR",
-  Chhattisgarh: "CG",
-  Goa: "GA",
-  Gujarat: "GJ",
-  Haryana: "HR",
-  "Himachal Pradesh": "HP",
-  Jharkhand: "JH",
-  Karnataka: "KA",
-  Kerala: "KL",
-  "Madhya Pradesh": "MP",
-  Maharashtra: "MH",
-  Manipur: "MN",
-  Meghalaya: "ML",
-  Mizoram: "MZ",
-  Nagaland: "NL",
-  Odisha: "OR",
-  Punjab: "PB",
-  Rajasthan: "RJ",
-  Sikkim: "SK",
-  "Tamil Nadu": "TN",
-  Telangana: "TG",
-  Tripura: "TR",
-  "Uttar Pradesh": "UP",
-  Uttarakhand: "UT",
-  "West Bengal": "WB",
-  "Andaman and Nicobar Islands": "AN",
-  Chandigarh: "CH",
-  "Dadra and Nagar Haveli and Daman and Diu": "DH",
-  Delhi: "DL",
-  "Jammu and Kashmir": "JK",
-  Ladakh: "LA",
-  Lakshadweep: "LD",
-  Puducherry: "PY",
-};
-
-
-
-// API endpoints for fetching location data
-const LOCATION_APIS = {
-  // States of India - using Rapid API (GeoDB)
-  states: async (query) => {
-    if (!query) return [];
-    const cacheKey = `states-${query}`;
-    if (API_CACHE.has(cacheKey)) {
-      return API_CACHE.get(cacheKey);
-    }
-    try {
-      const url = `https://wft-geo-db.p.rapidapi.com/v1/geo/countries/IN/states?limit=10&namePrefix=${encodeURIComponent(
-        query
-      )}`;
-      const res = await fetch(url, {
-        headers: {
-          "X-RapidAPI-Key":
-            "13101479d5msh200aeefac521f12p1d43a3jsnbdda36d0645e",
-          "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(`States API responded with status: ${res.status}`);
-      }
-
-      const responseData = await res.json();
-      console.log(`📡 States API Response:`, responseData);
-
-      const data = responseData.data || [];
-      if (!Array.isArray(data)) {
-        console.warn("❌ States API returned non-array data:", data);
-        throw new Error("Invalid response structure");
-      }
-
-      const states = data.map((state) => state.name).slice(0, 10);
-      API_CACHE.set(cacheKey, states);
-      return states;
-    } catch (err) {
-      console.error("❌ States API failed:", err.message);
-      // Fallback to local states
-      const filteredStates = INDIAN_STATES.filter((state) =>
-        state.toLowerCase().includes(query.toLowerCase())
-      );
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      API_CACHE.set(cacheKey, filteredStates.slice(0, 10));
-      return filteredStates.slice(0, 10);
-    }
-  },
-
-  // Cities - using GeoDB Rapid API with local fallback (no backend API)
-  cities: async (query, stateCode = null) => {
-    if (!query) {
-      // Return all cities for the state when no query (for select dropdown) - use local data
-      const stateName = Object.keys(STATE_CODE_MAPPING).find(
-        (state) => STATE_CODE_MAPPING[state] === stateCode
-      );
-      if (stateName && LOCAL_CITIES[stateName]) {
-        console.log(
-          `🏙️ All cities for ${stateName} (local):`,
-          LOCAL_CITIES[stateName]
-        );
-        return LOCAL_CITIES[stateName];
-      }
-      return [];
-    }
-
-    const cacheKey = `cities-${query}-${stateCode || 'all'}`;
-    if (API_CACHE.has(cacheKey)) {
-      return API_CACHE.get(cacheKey);
-    }
-
-    const maxRetries = 3;
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        // Use GeoDB Rapid API for searching cities
-        let url = `https://wft-geo-db.p.rapidapi.com/v1/geo/cities?countryIds=IN&namePrefix=${encodeURIComponent(
-          query
-        )}&limit=10`;
-
-        // Add state filter if state is selected
-        if (stateCode) {
-          url += `&stateCode=${stateCode}`;
-          console.log(
-            `🔍 Cities API: Filtering by stateCode=${stateCode}, URL: ${url}`
-          );
-        } else {
-          console.log(`🔍 Cities API: No state filter, URL: ${url}`);
-        }
-
-        const res = await fetch(url, {
-          headers: {
-            "X-RapidAPI-Key":
-              "8acb9381a3mshea3bfd0bb433a6dp197841jsn1a5356656ec7",
-            "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
-          },
-        });
-
-        if (res.status === 429) {
-          // Rate limit exceeded, retry with exponential backoff
-          if (attempt < maxRetries - 1) {
-            const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
-            console.warn(
-              `⚠️ Cities API rate limited (429), retrying in ${delay}ms...`
-            );
-            await new Promise((resolve) => setTimeout(resolve, delay));
-            continue;
-          } else {
-            throw new Error(
-              `GeoDB API rate limit exceeded after ${maxRetries} attempts`
-            );
-          }
-        }
-
-        if (!res.ok) {
-          throw new Error(`GeoDB API responded with status: ${res.status}`);
-        }
-
-        const responseData = await res.json();
-
-        const data = responseData.data || [];
-        if (!Array.isArray(data)) {
-          console.warn("❌ GeoDB Cities API returned non-array data:", data);
-          return [];
-        }
-
-        const cities = data
-          .map((city) => city.name || "Unknown City")
-          .filter(Boolean);
-        API_CACHE.set(cacheKey, cities);
-        return cities;
-      } catch (err) {
-        console.error(
-          `❌ Cities API attempt ${attempt + 1} failed:`,
-          err.message
-        );
-        if (attempt === maxRetries - 1) {
-          // Fallback to local cities if all retries fail and we have local data
-          const stateName = Object.keys(LOCAL_CITIES).find(
-            (state) => STATE_CODE_MAPPING[state] === stateCode
-          );
-
-          if (stateName && LOCAL_CITIES[stateName]) {
-            console.log(
-              `🔄 API failed after retries, falling back to local cities for ${stateName}`
-            );
-            const localCities = LOCAL_CITIES[stateName].filter((city) =>
-              city.toLowerCase().includes(query.toLowerCase())
-            );
-            API_CACHE.set(cacheKey, localCities.slice(0, 10));
-            return localCities.slice(0, 10);
-          }
-
-          return [];
-        }
-      }
-    }
-  },
-};
-
-// Enhanced Debounced Autocomplete with API Integration
-const DebouncedAutoComplete = ({
-  name,
-  value,
-  onChange,
-  placeholder,
-  apiType,
-  className,
-  stateCode = null,
-  disabled = false,
-  isSelect = false,
-  providedOptions = null,
-}) => {
-  const [inputValue, setInputValue] = useState(value || "");
-  const [filteredOptions, setFilteredOptions] = useState([]);
-  const [options, setOptions] = useState([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const containerRef = useRef(null);
-
-  const fetchAllOptions = useCallback(async () => {
-    if (apiType === "cities" && !stateCode) {
-      console.log(`🚫 No state selected for cities select`);
-      setOptions([]);
-      return;
-    }
-
-    // Reverse map stateCode to stateName for local data
-    const stateName = Object.keys(STATE_CODE_MAPPING).find(
-      (key) => STATE_CODE_MAPPING[key] === stateCode
-    );
-
-    setIsLoading(true);
-    console.log(
-      `🔍 Fetching all ${apiType} for stateCode: "${stateCode}" (state: "${stateName}")`
-    );
-
-    try {
-      let results;
-      if (apiType === "cities" && stateName && LOCAL_CITIES[stateName]) {
-        // Use local data for supported states to avoid slow API
-        results = LOCAL_CITIES[stateName];
-        console.log(
-          `✅ Using local cities for ${stateName}: ${results.length} cities`
-        );
-      } else {
-        // For other states, fetch from API (but limit to avoid slowness; note: API may still be slow for large states)
-        results = await LOCATION_APIS[apiType]("", stateCode);
-      }
-      console.log(
-        `✅ Fetched ${results.length} ${apiType} results:`,
-        results.slice(0, 5) // Log first few to avoid console spam
-      );
-      setOptions(results);
-    } catch (err) {
-      console.error("❌ Fetch all failed:", err.message);
-      // Fallback to local if available
-      if (stateName && LOCAL_CITIES[stateName]) {
-        setOptions(LOCAL_CITIES[stateName]);
-      } else {
-        setOptions([]);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [apiType, stateCode]);
-
-  // Reset input when value prop changes
-  useEffect(() => {
-    setInputValue(value || "");
-  }, [value]);
-
-  // Preload options when stateCode changes for cities
-  useEffect(() => {
-    if (apiType === "cities" && stateCode) {
-      fetchAllOptions();
-    } else if (apiType === "cities" && !stateCode) {
-      setOptions([]);
-      setFilteredOptions([]);
-      setIsOpen(false);
-    }
-  }, [stateCode, apiType, fetchAllOptions]);
-
-  // Fetch all options for select mode
-  useEffect(() => {
-    if (isSelect) {
-      fetchAllOptions();
-    }
-  }, [isSelect, fetchAllOptions]);
-
-  const fetchOptions = useCallback(
-    debounce(async (searchValue) => {
-      // Don't search cities if no state is selected
+    const fetchAllOptions = useCallback(async () => {
       if (apiType === "cities" && !stateCode) {
-        console.log(`🚫 No state selected for cities search`);
-        setFilteredOptions([]);
-        setIsOpen(false);
+        console.log(`🚫 No state selected for cities select`);
+        setOptions([]);
         return;
       }
 
-      if (searchValue && searchValue.length >= 1) {
-        // If we have preloaded options, filter locally first for instant response
-        if (options.length > 0) {
-          const localResults = options
-            .filter((option) =>
-              option.toLowerCase().includes(searchValue.toLowerCase())
-            )
-            .slice(0, 10);
-          if (localResults.length > 0) {
-            console.log(
-              `✅ Instant local filter: ${localResults.length} results`
-            );
-            setFilteredOptions(localResults);
-            setIsOpen(true);
-            setIsLoading(false);
-            return;
+      // Reverse map stateCode to stateName for local data
+      const stateName = Object.keys(STATE_CODE_MAPPING).find(
+        (key) => STATE_CODE_MAPPING[key] === stateCode
+      );
+
+      setIsLoading(true);
+      console.log(
+        `🔍 Fetching all ${apiType} for stateCode: "${stateCode}" (state: "${stateName}")`
+      );
+
+      try {
+        let results;
+        if (apiType === "cities" && stateName && LOCAL_CITIES[stateName]) {
+          // Use local data for supported states to avoid slow API
+          results = LOCAL_CITIES[stateName];
+          console.log(
+            `✅ Using local cities for ${stateName}: ${results.length} cities`
+          );
+        } else {
+          // For other states, fetch from API (but limit to avoid slowness; note: API may still be slow for large states)
+          if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
           }
+          abortControllerRef.current = new AbortController();
+          results = await LOCATION_APIS[apiType](
+            "",
+            stateCode,
+            abortControllerRef.current.signal
+          );
+        }
+        console.log(
+          `✅ Fetched ${results.length} ${apiType} results:`,
+          results.slice(0, 5) // Log first few to avoid console spam
+        );
+        setOptions(results);
+      } catch (err) {
+        if (err.name === "AbortError") {
+          console.log("Fetch all options request aborted");
+          return;
+        }
+        console.error("❌ Fetch all failed:", err.message);
+        // Fallback to local if available
+        if (stateName && LOCAL_CITIES[stateName]) {
+          setOptions(LOCAL_CITIES[stateName]);
+        } else {
+          setOptions([]);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }, [apiType, stateCode]);
+
+    // Reset input when value prop changes
+    useEffect(() => {
+      setInputValue(value || "");
+    }, [value]);
+
+    // Preload options when stateCode changes for cities
+    useEffect(() => {
+      if (apiType === "cities" && stateCode) {
+        fetchAllOptions();
+      } else if (apiType === "cities" && !stateCode) {
+        setOptions([]);
+        setFilteredOptions([]);
+        setIsOpen(false);
+      }
+    }, [stateCode, apiType, fetchAllOptions]);
+
+    // Fetch all options for select mode
+    useEffect(() => {
+      if (isSelect) {
+        fetchAllOptions();
+      }
+    }, [isSelect, fetchAllOptions]);
+
+    const fetchOptions = useCallback(
+      debounce(async (searchValue) => {
+        // Cancel previous request if any
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
+        // Don't search cities if no state is selected
+        if (apiType === "cities" && !stateCode) {
+          console.log(`🚫 No state selected for cities search`);
+          setFilteredOptions([]);
+          setIsOpen(false);
+          return;
         }
 
-        // Fallback to API search if no local match or no preload
-        setIsLoading(true);
-        console.log(
-          `🔍 API search for ${apiType}: "${searchValue}" with stateCode: "${stateCode}"`
-        );
-        try {
-          let results;
-          if (apiType === "companies" && providedOptions) {
-            results = providedOptions
+        if (searchValue && searchValue.length >= 1) {
+          // If we have preloaded options, filter locally first for instant response
+          if (options.length > 0) {
+            const localResults = options
               .filter((option) =>
                 option.toLowerCase().includes(searchValue.toLowerCase())
               )
               .slice(0, 10);
-          } else {
-            results = await LOCATION_APIS[apiType](searchValue, stateCode);
+            if (localResults.length > 0) {
+              console.log(
+                `✅ Instant local filter: ${localResults.length} results`
+              );
+              setFilteredOptions(localResults);
+              setIsOpen(true);
+              setIsLoading(false);
+              return;
+            }
           }
+
+          // Fallback to API search if no local match or no preload
+          setIsLoading(true);
           console.log(
-            `✅ API fetched ${results.length} ${apiType} results:`,
-            results
+            `🔍 API search for ${apiType}: "${searchValue}" with stateCode: "${stateCode}"`
           );
-          setFilteredOptions(results);
-          setIsOpen(results.length > 0);
-        } catch (err) {
-          console.error("❌ API fetch failed:", err.message);
+          try {
+            let results;
+            if (apiType === "companies" && providedOptions) {
+              results = providedOptions
+                .filter((option) =>
+                  option.toLowerCase().includes(searchValue.toLowerCase())
+                )
+                .slice(0, 10);
+            } else {
+              results = await LOCATION_APIS[apiType](
+                searchValue,
+                stateCode,
+                abortControllerRef.current.signal
+              );
+            }
+            console.log(
+              `✅ API fetched ${results.length} ${apiType} results:`,
+              results
+            );
+            setFilteredOptions(results);
+            setIsOpen(results.length > 0);
+          } catch (err) {
+            if (err.name === "AbortError") {
+              console.log("API search request aborted");
+              return;
+            }
+            console.error("❌ API fetch failed:", err.message);
+            setFilteredOptions([]);
+            setIsOpen(false);
+          } finally {
+            setIsLoading(false);
+          }
+        } else {
           setFilteredOptions([]);
           setIsOpen(false);
-        } finally {
           setIsLoading(false);
         }
-      } else {
-        setFilteredOptions([]);
-        setIsOpen(false);
-        setIsLoading(false);
-      }
-    }, 100), // Further reduced for quicker feel
-    [apiType, stateCode, providedOptions, options]
-  );
+      }, 200), // Increased debounce delay to 200ms
+      [apiType, stateCode, providedOptions, options]
+    );
 
-  useEffect(() => {
-    fetchOptions(inputValue);
-  }, [inputValue, fetchOptions]);
+    useEffect(() => {
+      fetchOptions(inputValue);
+    }, [inputValue, fetchOptions]);
 
-  // Add the missing handleInputChange function
-  const handleInputChange = (e) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    onChange(newValue);
-  };
-
-  const handleOptionSelect = (option) => {
-    setInputValue(option);
-    onChange(option);
-    setIsOpen(false);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
+    // Add the missing handleInputChange function
+    const handleInputChange = (e) => {
+      const newValue = e.target.value;
+      setInputValue(newValue);
+      onChange(newValue);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
-  const isDisabled = disabled || (apiType === "cities" && !stateCode);
+    const handleOptionSelect = (option) => {
+      setInputValue(option);
+      onChange(option);
+      setIsOpen(false);
+    };
 
-  if (isSelect) {
+    useEffect(() => {
+      const handleClickOutside = (e) => {
+        if (containerRef.current && !containerRef.current.contains(e.target)) {
+          setIsOpen(false);
+        }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const isDisabled = disabled || (apiType === "cities" && !stateCode);
+
+    if (isSelect) {
+      return (
+        <div className="relative w-full">
+          <select
+            name={name}
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            className={`${className} ${
+              isDisabled ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
+            }`}
+            disabled={isDisabled}
+          >
+            <option value="">
+              {isDisabled ? "Select state first" : placeholder}
+            </option>
+            {options.map((option, index) => (
+              <option key={index} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          {isLoading && (
+            <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
-      <div className="relative w-full">
-        <select
+      <div ref={containerRef} className="relative w-full">
+        <input
+          type="text"
           name={name}
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
+          value={inputValue}
+          onChange={handleInputChange}
+          placeholder={isDisabled ? "Select state first" : placeholder}
           className={`${className} ${
             isDisabled ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
           }`}
+          onFocus={() => {
+            if (!isDisabled && inputValue) fetchOptions(inputValue);
+          }}
+          autoComplete="off"
           disabled={isDisabled}
-        >
-          <option value="">
-            {isDisabled ? "Select state first" : placeholder}
-          </option>
-          {options.map((option, index) => (
-            <option key={index} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        />
         {isLoading && (
           <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
             <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
+          </div>
+        )}
+        {isOpen && (
+          <div className="absolute z-20 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option, index) => (
+                <div
+                  key={index}
+                  onClick={() => handleOptionSelect(option)}
+                  className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-100 last:border-b-0 transition-colors duration-150"
+                >
+                  {option}
+                </div>
+              ))
+            ) : (
+              <div className="px-4 py-3 text-gray-500 text-sm">
+                No options found
+              </div>
+            )}
           </div>
         )}
       </div>
     );
   }
 
-  return (
-    <div ref={containerRef} className="relative w-full">
-      <input
-        type="text"
-        name={name}
-        value={inputValue}
-        onChange={handleInputChange}
-        placeholder={isDisabled ? "Select state first" : placeholder}
-        className={`${className} ${
-          isDisabled ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
-        }`}
-        onFocus={() => {
-          if (!isDisabled && inputValue) fetchOptions(inputValue);
-        }}
-        autoComplete="off"
-        disabled={isDisabled}
-      />
-      {isLoading && (
-        <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-          <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
-        </div>
-      )}
-      {isOpen && (
-        <div className="absolute z-20 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-          {filteredOptions.length > 0 ? (
-            filteredOptions.map((option, index) => (
-              <div
-                key={index}
-                onClick={() => handleOptionSelect(option)}
-                className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-100 last:border-b-0 transition-colors duration-150"
-              >
-                {option}
-              </div>
-            ))
-          ) : (
-            <div className="px-4 py-3 text-gray-500 text-sm">
-              No options found
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+);
+
+DebouncedAutoComplete.displayName = "DebouncedAutoComplete";
+
+DebouncedAutoComplete.propTypes = {
+  name: PropTypes.string.isRequired,
+  value: PropTypes.string,
+  onChange: PropTypes.func.isRequired,
+  placeholder: PropTypes.string,
+  apiType: PropTypes.oneOf(["states", "cities", "companies"]).isRequired,
+  className: PropTypes.string,
+  stateCode: PropTypes.string,
+  disabled: PropTypes.bool,
+  isSelect: PropTypes.bool,
+  providedOptions: PropTypes.arrayOf(PropTypes.string),
 };
+
 const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   const { logout, user } = useAuth();
   const [documentFile, setdocumentFile] = useState(null);
@@ -787,7 +594,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       );
       reset(updatedData);
 
-      // Set comments from existing data (do NOT use comment1, comment2, comment3)
+      // Set comments from existing data (do not use comment1, comment2, comment3)
       if (
         Array.isArray(initialData.comments) &&
         initialData.comments.length > 0
@@ -842,48 +649,7 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
     }
   }, [documentFile]);
 
-  const checkCityValidity = async (city, stateName) => {
-    if (!city || !stateName) return true;
 
-    const cacheKey = `${city}-${stateName}`;
-    if (CITY_VALIDITY_CACHE.has(cacheKey)) {
-      return CITY_VALIDITY_CACHE.get(cacheKey);
-    }
-
-    const stateCode = STATE_CODE_MAPPING[stateName];
-    try {
-      console.log(
-        `🔍 Validating city "${city}" for state "${stateName}" (code: ${stateCode})`
-      );
-      // Search for the specific city within the state
-      const matchingCities = await LOCATION_APIS.cities(city, stateCode);
-      console.log(`📡 Matching cities found:`, matchingCities);
-
-      const isValid = matchingCities.some(
-        (c) => c.toLowerCase() === city.toLowerCase()
-      );
-      CITY_VALIDITY_CACHE.set(cacheKey, isValid);
-      console.log(
-        `✅ City validation result for "${city}" in "${stateName}": ${isValid}`
-      );
-      return isValid;
-    } catch (e) {
-      console.error("City validation failed:", e);
-
-      // ✅ Fallback to local cities list
-      if (LOCAL_CITIES[stateName]) {
-        const isValid = LOCAL_CITIES[stateName].some(
-          (c) => c.toLowerCase() === city.toLowerCase()
-        );
-        CITY_VALIDITY_CACHE.set(cacheKey, isValid);
-        return isValid;
-      }
-
-      CITY_VALIDITY_CACHE.set(cacheKey, false);
-      // Strict: If we can’t verify, reject it
-      return false;
-    }
-  };
 
   const onSubmit = async (data) => {
     let hasError = false;
@@ -2142,6 +1908,13 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
       </div>
     </div>
   );
+};
+
+UserForm.propTypes = {
+  initialData: PropTypes.object,
+  mode: PropTypes.oneOf(["add", "edit"]),
+  onClose: PropTypes.func,
+  onSuccess: PropTypes.func,
 };
 
 export default UserForm;
