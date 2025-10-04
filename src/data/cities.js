@@ -556,8 +556,8 @@ export const LOCAL_CITIES = {
     "Brahmapur",
     "Sambalpur",
     "Puri",
-    "Baleshwar Town",
-    "Baripada Town",
+    "Balasore",
+    "Baripada",
     "Bhadrak",
     "Balangir",
     "Jharsuguda",
@@ -583,7 +583,8 @@ export const LOCAL_CITIES = {
     "Soro",
     "Malkangiri",
     "Rairangpur",
-    "Tarbha"
+    "Tarbha",
+    "Karanjia"
   ],
   "Chhattisgarh": [
     "Raipur",
