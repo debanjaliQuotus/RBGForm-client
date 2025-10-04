@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { LogOut } from "lucide-react";
 import { renderAsync } from "docx-preview";
 import { getAllCompanies } from "../api/adminApi";
-import { LOCAL_CITIES } from "../data/cities";
+
 import {
   LOCATION_APIS,
   STATE_CODE_MAPPING,
@@ -41,64 +41,49 @@ const DebouncedAutoComplete = memo(
     const containerRef = useRef(null);
     const abortControllerRef = useRef(null);
 
-    const fetchAllOptions = useCallback(async () => {
-      if (apiType === "cities" && !stateCode) {
-        console.log(`🚫 No state selected for cities select`);
-        setOptions([]);
-        return;
-      }
+   const fetchAllOptions = useCallback(async () => {
+  if (apiType === "cities" && !stateCode) {
+    console.log(`🚫 No state selected for cities select`);
+    setOptions([]);
+    return;
+  }
 
-      // Reverse map stateCode to stateName for local data
-      const stateName = Object.keys(STATE_CODE_MAPPING).find(
-        (key) => STATE_CODE_MAPPING[key] === stateCode
-      );
+  const stateName = Object.keys(STATE_CODE_MAPPING).find(
+    (key) => STATE_CODE_MAPPING[key] === stateCode
+  );
 
-      setIsLoading(true);
-      console.log(
-        `🔍 Fetching all ${apiType} for stateCode: "${stateCode}" (state: "${stateName}")`
-      );
+  setIsLoading(true);
+  console.log(
+    `🔍 Fetching all ${apiType} for stateCode: "${stateCode}" (state: "${stateName}")`
+  );
 
-      try {
-        let results;
-        if (apiType === "cities" && stateName && LOCAL_CITIES[stateName]) {
-          // Use local data for supported states to avoid slow API
-          results = LOCAL_CITIES[stateName];
-          console.log(
-            `✅ Using local cities for ${stateName}: ${results.length} cities`
-          );
-        } else {
-          // For other states, fetch from API (but limit to avoid slowness; note: API may still be slow for large states)
-          if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-          }
-          abortControllerRef.current = new AbortController();
-          results = await LOCATION_APIS[apiType](
-            "",
-            stateCode,
-            abortControllerRef.current.signal
-          );
-        }
-        console.log(
-          `✅ Fetched ${results.length} ${apiType} results:`,
-          results.slice(0, 5) // Log first few to avoid console spam
-        );
-        setOptions(results);
-      } catch (err) {
-        if (err.name === "AbortError") {
-          console.log("Fetch all options request aborted");
-          return;
-        }
-        console.error("❌ Fetch all failed:", err.message);
-        // Fallback to local if available
-        if (stateName && LOCAL_CITIES[stateName]) {
-          setOptions(LOCAL_CITIES[stateName]);
-        } else {
-          setOptions([]);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    }, [apiType, stateCode]);
+  try {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    const results = await LOCATION_APIS[apiType](
+      "",
+      stateCode,
+      abortControllerRef.current.signal
+    );
+
+    console.log(`✅ Fetched ${results.length} ${apiType} results`);
+    setOptions(results);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      console.log("Fetch all options request aborted");
+      return;
+    }
+    console.error("❌ Fetch all failed:", err.message);
+    setOptions([]);
+  } finally {
+    abortControllerRef.current = null;
+    setIsLoading(false);
+  }
+}, [apiType, stateCode]);
+
 
     // Reset input when value prop changes
     useEffect(() => {
@@ -123,11 +108,12 @@ const DebouncedAutoComplete = memo(
       }
     }, [isSelect, fetchAllOptions]);
 
-    const fetchOptions = useCallback(
+      const fetchOptions = useCallback(
       debounce(async (searchValue) => {
-        // Cancel previous request if any
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
+        // Only abort previous request if a new search is starting and previous fetch is still ongoing
+        if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+          // Commenting out abort to test if cities load correctly without aborting
+          // abortControllerRef.current.abort();
         }
         abortControllerRef.current = new AbortController();
 
@@ -472,10 +458,23 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   useEffect(() => {
     const validateCurrentCity = async () => {
       if (currentCityValue && currentStateValue) {
-        const isValid = await checkCityValidity(
-          currentCityValue,
-          currentStateValue
+        // Normalize city and state names for validation
+        const normalizedCity = currentCityValue.trim().toLowerCase();
+        const normalizedState = currentStateValue.trim().toLowerCase();
+
+        // Map normalized state to proper case state name for API
+        const properStateName = Object.keys(STATE_CODE_MAPPING).find(
+          (key) => key.toLowerCase() === normalizedState
         );
+
+        if (!properStateName) {
+          setError("currentCity", {
+            message: "Invalid state selected.",
+          });
+          return;
+        }
+
+        const isValid = await checkCityValidity(normalizedCity, properStateName);
         if (!isValid) {
           setError("currentCity", {
             message: "The selected city is not included in the specific state.",
@@ -494,10 +493,23 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
   useEffect(() => {
     const validatePreferredCity = async () => {
       if (preferredCityValue && preferredStateValue) {
-        const isValid = await checkCityValidity(
-          preferredCityValue,
-          preferredStateValue
+        // Normalize city and state names for validation
+        const normalizedCity = preferredCityValue.trim().toLowerCase();
+        const normalizedState = preferredStateValue.trim().toLowerCase();
+
+        // Map normalized state to proper case state name for API
+        const properStateName = Object.keys(STATE_CODE_MAPPING).find(
+          (key) => key.toLowerCase() === normalizedState
         );
+
+        if (!properStateName) {
+          setError("preferredCity", {
+            message: "Invalid state selected.",
+          });
+          return;
+        }
+
+        const isValid = await checkCityValidity(normalizedCity, properStateName);
         if (!isValid) {
           setError("preferredCity", {
             message: "The selected city is not included in the specific state.",
@@ -1060,11 +1072,9 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                   {renderError("fatherName")}
                 </div>
                 <div>
-                                   {" "}
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     PAN Number
                   </label>
-                                   {" "}
                   <Controller
                     name="panNo"
                     control={control}
@@ -1082,11 +1092,10 @@ const UserForm = ({ initialData = null, mode = "add", onClose, onSuccess }) => {
                       />
                     )}
                   />
-                                    {renderError("panNo")}
+                  {renderError("panNo")}
                   {/* ✨ NEW: Live warning for PAN */}
-                  {renderInputWarning("panNo", panNoValue, 10)}             {" "}
+                  {renderInputWarning("panNo", panNoValue, 10)}
                 </div>
-                             {" "}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
