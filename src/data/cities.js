@@ -1257,6 +1257,7 @@ export const LOCAL_CITIES = {
   "Malda (English Bazar)",
   "Medinipur",
   "Habra",
+  "Hooghly",
   "Baranagar",
   "Kamarhati",
   "North Dumdum",
@@ -1279,6 +1280,7 @@ export const LOCAL_CITIES = {
   "Rampurhat",
   "Sainthia",
   "Bolpur",
+  "Birbhum",
   "Kulti",
   "Bansberia",
   "Bhadreswar",
@@ -1320,7 +1322,20 @@ export const LOCAL_CITIES = {
   "Cooper’s Camp",
   "Taherpur",
   "Mirik",
-  "Nadia"
+  "Nadia",
+  "Bardhaman",
+  "Shantipur",
+  "Dankuni",
+  "Dhulian",
+  "Chakdaha",
+  "North 24 Parganas",
+  "South 24 Parganas",
+  "Paschim Bardhaman",
+  "Paschim Medinipur",
+  "Purba Bardhaman",
+  "Purba Medinipur",
+  "Uttar Dinajpur",
+  "Dakshin Dinajpur"
 ]
 
 };
