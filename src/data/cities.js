@@ -550,6 +550,7 @@ export const LOCAL_CITIES = {
     "Marigaon"
   ],
   "Odisha": [
+    "Anugul",
     "Bhubaneswar",
     "Cuttack",
     "Raurkela",
@@ -562,7 +563,7 @@ export const LOCAL_CITIES = {
     "Balangir",
     "Jharsuguda",
     "Bargarh",
-    "Paradip",
+    "Paradeep",
     "Bhawanipatna",
     "Dhenkanal",
     "Barbil",
@@ -570,6 +571,8 @@ export const LOCAL_CITIES = {
     "Sunabeda",
     "Rayagada",
     "Jatani",
+    "Jajpur",
+    "Jajpur Road",
     "Byasanagar",
     "Kendrapara",
     "Rajagangapur",
