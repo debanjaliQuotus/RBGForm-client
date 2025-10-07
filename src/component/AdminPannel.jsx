@@ -10,7 +10,7 @@ import {
   Key,
   MoveLeftIcon,
   Building,
-  LogOut
+  LogOut,
 } from "lucide-react";
 import {
   getSubAdmins,
@@ -26,12 +26,51 @@ import {
   deleteCompany,
 } from "../api/adminApi";
 import { useAuth } from "../context/AuthContext";
+import { LOCATION_APIS, getAllCitiesCombined } from "../utils/locationApi";
+
+// Location API functions
+const getAllStates = async () => {
+  try {
+    const states = await LOCATION_APIS.states("", null);
+    return { data: states };
+  } catch (err) {
+    console.error("Failed to fetch states:", err);
+    return { data: [] };
+  }
+};
+
+const getAllCities = async () => {
+  try {
+    const cities = await getAllCitiesCombined();
+    return { data: cities };
+  } catch (err) {
+    console.error("Failed to fetch total cities count:", err);
+    return { data: [] };
+  }
+};
+
+const createCity = async (data) => {
+  const response = await fetch(
+    `${import.meta.env.VITE_BACKEND_URI}/admin/cities`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }
+  );
+  if (!response.ok) throw new Error("Failed to create city");
+  return response.json();
+};
+
+
 
 const AdminPanel = () => {
-  const {logout}=useAuth()
+  const { logout } = useAuth();
   const [subAdmins, setSubAdmins] = useState([]);
   const [subUsers, setSubUsers] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
   const [companySearch, setCompanySearch] = useState("");
   const [showAllCompanies, setShowAllCompanies] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -51,6 +90,11 @@ const AdminPanel = () => {
     useState(false);
   const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
   const [createCompanyForm, setCreateCompanyForm] = useState({ name: "" });
+  const [isCreateCityModalOpen, setIsCreateCityModalOpen] = useState(false);
+  const [createCityForm, setCreateCityForm] = useState({
+    name: "",
+    stateId: "",
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -66,9 +110,13 @@ const AdminPanel = () => {
       const resAdmins = await getSubAdmins();
       const resUsers = await getSubUsers();
       const resCompanies = await getAllCompanies();
+      const resStates = await getAllStates();
+      const resCities = await getAllCities();
       setSubAdmins(resAdmins.data.data || []);
       setSubUsers(resUsers.data.data || []);
       setCompanies(resCompanies.data || []);
+      setStates(resStates.data || []);
+      setCities(resCities.data || []);
     } catch (error) {
       console.error("Error fetching admin panel data:", error);
       setError("Error loading admin panel data: " + error.message);
@@ -197,7 +245,25 @@ const AdminPanel = () => {
     }
   };
 
-   const handleLogout = () => {
+  const handleCloseCreateCityModal = () => {
+    setIsCreateCityModalOpen(false);
+    setCreateCityForm({ name: "", stateId: "" });
+  };
+
+  const handleCreateCitySubmit = async () => {
+    try {
+      await createCity(createCityForm);
+      setIsCreateCityModalOpen(false);
+      setCreateCityForm({ name: "", stateId: "" });
+      fetchData();
+      alert("City created successfully!");
+    } catch (error) {
+      console.error("Error creating city:", error);
+      alert("Error creating city: " + error.message);
+    }
+  };
+
+  const handleLogout = () => {
     logout();
   };
 
@@ -255,7 +321,8 @@ const AdminPanel = () => {
               Admin Panel
             </h1>
             <p className="text-gray-600">
-              Manage sub-admins, sub-users, and companies in your system
+              Manage sub-admins, sub-users, companies, states, and cities in
+              your system
             </p>
           </div>
           <div className="flex space-x-3">
@@ -273,11 +340,19 @@ const AdminPanel = () => {
               <Building size={16} className="mr-2" />
               Create Company
             </button>
+
+            <button
+              onClick={() => setIsCreateCityModalOpen(true)}
+              className="px-4 py-2 bg-[#1a2a52] text-white rounded-lg hover:bg-[#2a3a72] transition-colors flex items-center"
+            >
+              <Users size={16} className="mr-2" />
+              Create City
+            </button>
           </div>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-10">
           <div className="bg-white rounded-xl shadow-md p-6 flex items-center">
             <div className="p-3 bg-[#bfa75a] bg-opacity-20 rounded-full mr-4">
               <Shield className="text-[#1a2a52]" size={28} />
@@ -316,6 +391,30 @@ const AdminPanel = () => {
               </h3>
               <p className="text-2xl font-bold text-[#1a2a52]">
                 {companies.length}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6 flex items-center">
+            <div className="p-3 bg-[#bfa75a] bg-opacity-20 rounded-full mr-4">
+              <Shield className="text-[#1a2a52]" size={28} />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-[#1a2a52]">States</h3>
+              <p className="text-2xl font-bold text-[#1a2a52]">
+                {states.length}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6 flex items-center">
+            <div className="p-3 bg-[#bfa75a] bg-opacity-20 rounded-full mr-4">
+              <Users className="text-[#1a2a52]" size={28} />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-[#1a2a52]">Cities</h3>
+              <p className="text-2xl font-bold text-[#1a2a52]">
+                {cities.length}
               </p>
             </div>
           </div>
@@ -834,6 +933,85 @@ const AdminPanel = () => {
                   className="px-4 py-2 bg-[#1a2a52] text-white rounded-lg hover:bg-[#2a3a72] focus:outline-none focus:ring-2 focus:ring-[#1a2a52] transition-colors"
                 >
                   Create Company
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create City Modal */}
+      {isCreateCityModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md">
+            <div className="bg-[#1a2a52] text-white p-4 rounded-t-xl flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Create City</h3>
+              <button
+                onClick={handleCloseCreateCityModal}
+                className="text-white hover:text-gray-200"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-[#1a2a52] mb-2">
+                  State
+                </label>
+                <select
+                  value={createCityForm.stateId}
+                  onChange={(e) =>
+                    setCreateCityForm({
+                      ...createCityForm,
+                      stateId: e.target.value,
+                    })
+                  }
+                  // Add the text-gray-900 class here to ensure visibility
+                  className="w-full px-4 py-2 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1a2a52] focus:border-transparent"
+                >
+                  <option value="">Select State</option>
+                  {/* ✅ MODIFIED THIS PART */}
+                  {states.map((stateName, index) => (
+                    // 'stateName' is now a string like "Odisha"
+                    <option key={index} value={stateName}>
+                      {stateName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-[#1a2a52] mb-2">
+                  City Name
+                </label>
+                <input
+                  type="text"
+                  value={createCityForm.name}
+                  onChange={(e) =>
+                    setCreateCityForm({
+                      ...createCityForm,
+                      name: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1a2a52] focus:border-transparent"
+                  placeholder="Enter city name"
+                />
+              </div>
+
+              
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleCloseCreateCityModal}
+                  className="px-4 py-2 text-[#1a2a52] bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateCitySubmit}
+                  className="px-4 py-2 bg-[#1a2a52] text-white rounded-lg hover:bg-[#2a3a72] focus:outline-none focus:ring-2 focus:ring-[#1a2a52] transition-colors"
+                >
+                  Create City
                 </button>
               </div>
             </div>

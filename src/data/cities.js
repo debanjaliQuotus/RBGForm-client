@@ -559,7 +559,6 @@ export const LOCAL_CITIES = {
     "Puri",
     "Balasore",
     "Baripada",
-    "Bhadrak",
     "Balangir",
     "Jharsuguda",
     "Bargarh",
@@ -571,8 +570,7 @@ export const LOCAL_CITIES = {
     "Sunabeda",
     "Rayagada",
     "Jatani",
-    "Jajpur",
-    "Jajpur Road",
+    
     "Byasanagar",
     "Kendrapara",
     "Rajagangapur",
@@ -622,7 +620,6 @@ export const LOCAL_CITIES = {
     "Udhampur"
   ],
   "Karnataka": [
-    "Bengaluru",
     "Hubli-Dharwad",
     "Belagavi",
     "Mangaluru",
@@ -919,11 +916,12 @@ export const LOCAL_CITIES = {
     "Patna",
     "Gaya",
     "Bhagalpur",
+    "Bihar Sharif",
+    "Chapra",
     "Muzaffarpur",
     "Darbhanga",
     "Arrah",
     "Begusarai",
-    "Chhapra",
     "Katihar",
     "Munger",
     "Purnia",
@@ -1342,3 +1340,4 @@ export const LOCAL_CITIES = {
 ]
 
 };
+

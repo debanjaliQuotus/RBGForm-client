@@ -114,7 +114,7 @@ const fetchWithAbort = async (url, options = {}, abortSignal) => {
 export const LOCATION_APIS = {
   // States of India - using Rapid API (GeoDB)
   states: async (query, abortSignal) => {
-    if (!query) return [];
+    if (!query) return INDIAN_STATES;
     const cacheKey = `states-${query}`;
     if (API_CACHE.has(cacheKey)) {
       return API_CACHE.get(cacheKey);
@@ -161,47 +161,100 @@ export const LOCATION_APIS = {
     }
   },
 
-  // Cities - using local cities data from cities.js
-  cities: async (query, stateCode = null, abortSignal) => { // eslint-disable-line no-unused-vars
+  // Cities - fetch from backend, fallback to local cities data from cities.js
+  cities: async (query, stateCode = null, abortSignal) => {
     const cacheKey = `cities-${query}-${stateCode || 'all'}`;
     if (API_CACHE.has(cacheKey)) {
       return API_CACHE.get(cacheKey);
     }
 
-    let cities = [];
     const stateName = stateCode ? STATE_NAME_MAPPING[stateCode] : null;
 
-    if (stateName && LOCAL_CITIES[stateName]) {
-      // If state is specified, get cities from that state
-      cities = LOCAL_CITIES[stateName];
-      if (query && query.length > 0) {
-        cities = cities.filter(city =>
-          city.toLowerCase().includes(query.toLowerCase())
-        );
-      }
-    } else if (!stateCode) {
-      // If no state specified, return cities from all states that match the query
-      cities = [];
-      for (const stateCities of Object.values(LOCAL_CITIES)) {
-        const matchingCities = stateCities.filter(city =>
-          !query || city.toLowerCase().includes(query.toLowerCase())
-        );
-        cities.push(...matchingCities);
-      }
-      cities = [...new Set(cities)]; // Remove duplicates
+    // If no state is selected, we can't get cities.
+    if (!stateName) {
+      return [];
     }
 
-    // Sort cities alphabetically for better UX
-    cities.sort((a, b) => a.localeCompare(b));
+    let dbCities = [];
+    let localCities = [];
 
-    API_CACHE.set(cacheKey, cities);
-    console.log(`📍 Cities fetched from local data for query="${query}", stateCode="${stateCode}": ${cities.length} cities`);
-    return cities;
+    // --- Step 1: Fetch cities from your database ---
+    try {
+      const url = `${import.meta.env.VITE_BACKEND_URI}/admin/cities?stateName=${encodeURIComponent(stateName)}`;
+      const responseData = await fetchWithAbort(url, {}, abortSignal);
+      const citiesFromDb = responseData.data || responseData || [];
+      
+      // The DB returns objects like {name: "BENGALURU"}, so we extract just the name.
+      dbCities = citiesFromDb.map(city => city.name); 
+      console.log(`📡 Fetched ${dbCities.length} cities from DB for ${stateName}`);
+
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        console.log('DB cities request aborted');
+        return []; // Abort the whole process if the request is cancelled
+      }
+      console.error("❌ Database cities API failed:", err.message);
+      // We don't stop here; we can still proceed with local data.
+    }
+
+    // --- Step 2: Get cities from your local 'cities.js' file ---
+    if (LOCAL_CITIES[stateName]) {
+      localCities = LOCAL_CITIES[stateName];
+    }
+
+    // --- Step 3: Combine both lists and remove any duplicates ---
+    const combinedCities = [...new Set([...dbCities, ...localCities])];
+
+    // --- Step 4: Filter the final list based on the user's search query ---
+    let filteredCities = combinedCities;
+    if (query && query.length > 0) {
+      filteredCities = combinedCities.filter(city =>
+        city.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+
+    // --- Step 5: Sort the list alphabetically ---
+    filteredCities.sort((a, b) => a.localeCompare(b));
+
+    API_CACHE.set(cacheKey, filteredCities);
+    console.log(`📍 Combined list has ${filteredCities.length} cities for query="${query}", state="${stateName}"`);
+    return filteredCities;
   },
 };
 
-// City validity check using local cities data
+export const getAllCitiesCombined = async () => {
+  let dbCities = [];
+  let localCities = [];
+
+  // --- 1. Fetch ALL cities from the database ---
+  try {
+    // This endpoint should return all cities from your database
+    const url = `${import.meta.env.VITE_BACKEND_URI}/cities`;
+    const response = await fetch(url);
+    if (response.ok) {
+      const responseData = await response.json();
+      const citiesFromDb = responseData.data || [];
+      // Extract just the city name from each object
+      dbCities = citiesFromDb.map(c => c.name);
+    }
+  } catch (err) {
+    console.error("❌ Failed to fetch all DB cities for stats:", err.message);
+  }
+
+  // --- 2. Get ALL cities from the local file ---
+  // We loop through each state in LOCAL_CITIES and collect all city names
+  for (const stateCities of Object.values(LOCAL_CITIES)) {
+    localCities.push(...stateCities);
+  }
+
+  // --- 3. Combine, remove duplicates, and return the complete list ---
+  const combinedCities = [...new Set([...dbCities, ...localCities])];
+  console.log(`📊 Found a total of ${combinedCities.length} unique cities.`);
+  return combinedCities;
+};
+
 export const checkCityValidity = async (city, stateName) => {
+  // 1. Basic checks and cache lookup (no changes here)
   if (!city || !stateName) return true;
 
   const cacheKey = `${city}-${stateName}`;
@@ -209,18 +262,41 @@ export const checkCityValidity = async (city, stateName) => {
     return CITY_VALIDITY_CACHE.get(cacheKey);
   }
 
-  let isValid = false;
+  let dbCities = [];
+  let localCities = [];
 
-  // Use local cities data for validation
-  if (LOCAL_CITIES[stateName]) {
-    isValid = LOCAL_CITIES[stateName].some(localCity =>
-      localCity.toLowerCase() === city.toLowerCase()
-    );
+  // --- 2. Fetch all cities for the state from your database ---
+  try {
+    const url = `${import.meta.env.VITE_BACKEND_URI}/admin/cities?stateName=${encodeURIComponent(stateName)}`;
+    const response = await fetch(url);
+    if (response.ok) {
+      const responseData = await response.json();
+      const citiesFromDb = responseData.data || responseData || [];
+      // Your DB returns objects like {name: "BENGALURU"}, so we extract just the names.
+      dbCities = citiesFromDb.map(c => c.name);
+    }
+  } catch (err) {
+    console.error("❌ Backend city validation failed, but continuing with local data:", err.message);
   }
+
+  // --- 3. Get all cities for the state from your local file ---
+  if (LOCAL_CITIES[stateName]) {
+    localCities = LOCAL_CITIES[stateName];
+  }
+
+  // --- 4. Combine both lists and remove duplicates ---
+  // We convert all to lowercase for a case-insensitive check.
+  const combinedCities = new Set([
+    ...dbCities.map(c => c.toLowerCase()),
+    ...localCities.map(c => c.toLowerCase())
+  ]);
+  
+  // --- 5. Check if the input city exists in the combined list ---
+  const isValid = combinedCities.has(city.toLowerCase());
 
   CITY_VALIDITY_CACHE.set(cacheKey, isValid);
   console.log(
-    `✅ City validation result for "${city}" in "${stateName}": ${isValid}`
+    `✅ Final city validation result for "${city}" in "${stateName}": ${isValid}`
   );
 
   return isValid;
